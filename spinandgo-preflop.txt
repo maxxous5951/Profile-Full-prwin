@@ -16,12 +16,24 @@
 0.8
 
 
+##f$test##
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River > 0.80) RETURN f$RandomizedBigValueBet FORCE
+
+
 ##f$debug##
        0.000 = InSmallBlind
-      20.000 = f$EffectiveMzone
+       6.800 = f$EffectiveMzone
        1.000 = f$OneWayPot
-       1.000 = f$ThreeBetColdCall
-       1.000 = Raises
+       0.000 = f$ThreeBetColdCall
+       0.000 = Raises
+       0.000 = f$EffectiveMzone > 10
+       0.000 = f$InPosition
+       0.000 = f$ProfileType = 1
+       1.000 = Bets = 0
+       0.000 = f$prwin_River >= 0.60
+       0.790 = prwin
+      40.000 = PotSize
+       0.000 = AmountToCall
 
 
 ##f$preflop##
@@ -66,20 +78,459 @@ WHEN (Others) Fold FORCE
 
 
 ##f$flop##
+// Strategie avancee pour le flop en Spin and Go
+// Restructuree pour etre compatible avec OpenHoldem (une seule condition ouverte)
+// Utilise les memes profils que le preflop: 0=Tight, 1=Regular, 2=Loose
 
+// Situations d urgence avec tres petit stack
+WHEN (f$EffectiveMzone <= 3) RETURN RaiseMax FORCE
+
+// Short stack - en position
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Flop > 0.65) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Flop > 0.55 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Flop > 0.55 AND Bets = 1) RETURN Call FORCE
+
+// Short stack - hors position
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Flop > 0.70) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Flop > 0.60 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Flop > 0.60 AND Bets = 1) RETURN Call FORCE
+WHEN (f$EffectiveMzone <= 10 AND Bets = 0) RETURN Check FORCE
+WHEN (f$EffectiveMzone <= 10) RETURN Fold FORCE
+
+// EN POSITION
+// Profil Tight - check de l adversaire (c-bet)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_Flop > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_Flop > 0.60) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_Flop > 0.45 AND randomround < 0.7) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_Flop <= 0.45 AND randomround < 0.35) RETURN f$RandomizedCbet FORCE
+
+// Profil Regular - check de l adversaire (c-bet)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_Flop > 0.70) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_Flop > 0.55) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_Flop > 0.40 AND randomround < 0.8) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_Flop <= 0.40 AND randomround < 0.45) RETURN f$RandomizedCbet FORCE
+
+// Profil Loose - check de l adversaire (c-bet)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_Flop > 0.65) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_Flop > 0.50) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_Flop > 0.35 AND randomround < 0.9) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_Flop <= 0.35 AND randomround < 0.55) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets = 0) RETURN Check FORCE
+
+// Profil Tight - face a un bet (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Flop > 0.80) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Flop > 0.60) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Flop > 0.48 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Flop > 0.75) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Flop > 0.55) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Flop > 0.45 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Flop > 0.30 AND randomround < 0.2 AND PotSize/AmountToCall > 4) RETURN Call FORCE
+
+// Profil Loose - face a un bet (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Flop > 0.70) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Flop > 0.50) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Flop > 0.40 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Flop > 0.25 AND randomround < 0.35 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Flop < 0.40 AND randomround < 0.15 AND f$EffectiveMzone > 18) RETURN f$RandomizedRaiseFlop FORCE
+
+// Face a un check-raise
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.85) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.55 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.80) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.50 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.75) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.60) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop > 0.45 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Flop < 0.45 AND randomround < 0.2 AND f$EffectiveMzone > 20) RETURN f$RandomizedRaiseFlop FORCE
+
+// Face a plusieurs bets
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_Flop > 0.80) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_Flop > 0.78) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_Flop > 0.75) RETURN Call FORCE
+
+// HORS POSITION
+// Profil Tight - premiere action (donk betting ou c-bet)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.80) RETURN f$RandomizedDonkBet FORCE
+
+// Profil Regular - premiere action (donk betting ou c-bet)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.65) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.50) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.75) RETURN f$RandomizedDonkBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.60 AND randomround < 0.3) RETURN f$RandomizedDonkBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.35 AND randomround < 0.5) RETURN f$RandomizedCbet FORCE
+
+// Profil Loose - premiere action (donk betting ou c-bet)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.60) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.45) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.70) RETURN f$RandomizedDonkBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.55 AND randomround < 0.4) RETURN f$RandomizedDonkBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$HeroCbetPossible AND f$prwin_Flop > 0.30 AND randomround < 0.7) RETURN f$RandomizedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$HeroCbetPossible AND f$prwin_Flop > 0.40 AND randomround < 0.25) RETURN f$RandomizedDonkBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets = 0 AND BotsActionsOnThisRound = 0) RETURN Check FORCE
+
+// Profil Tight - face a un bet apres notre check
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.80) RETURN f$RandomizedCheckRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.50 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet apres notre check
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.75) RETURN f$RandomizedCheckRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.60) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.45 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.35 AND randomround < 0.2 AND f$EffectiveMzone > 15) RETURN f$RandomizedCheckRaiseFlop FORCE
+
+// Profil Loose - face a un bet apres notre check
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.70) RETURN f$RandomizedCheckRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.55) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.40 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Flop > 0.30 AND randomround < 0.3 AND f$EffectiveMzone > 15) RETURN f$RandomizedCheckRaiseFlop FORCE
+
+// Profil Tight - face a une action apres notre bet
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.90) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.60 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a une action apres notre bet
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.85) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.55 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop < 0.40 AND randomround < 0.15 AND f$EffectiveMzone > 20) RETURN f$RandomizedRaiseFlop FORCE
+
+// Profil Loose - face a une action apres notre bet
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.80) RETURN f$RandomizedRaiseFlop FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop > 0.50 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Flop < 0.45 AND randomround < 0.25 AND f$EffectiveMzone > 18) RETURN f$RandomizedRaiseFlop FORCE
+
+// Face a plusieurs bets hors position
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_Flop > 0.85) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_Flop > 0.80) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_Flop > 0.75) RETURN Call FORCE
+
+// Action par defaut (check ou fold)
+WHEN (Bets = 0) RETURN Check FORCE
+WHEN (Others) RETURN Fold FORCE
 
 
 ##f$turn##
+// Strategie avancee pour le turn en Spin and Go
+// Restructuree pour etre compatible avec OpenHoldem (une seule condition ouverte)
+// Utilise les memes profils que le preflop: 0=Tight, 1=Regular, 2=Loose
 
+// Situations d urgence avec tres petit stack
+//WHEN (f$EffectiveMzone <= 3) RETURN RaiseMax FORCE
+
+// Short stack - en position
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Turn > 0.70) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Turn > 0.60 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_Turn > 0.60 AND Bets = 1) RETURN Call FORCE
+
+// Short stack - hors position
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Turn > 0.75) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Turn > 0.65 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_Turn > 0.65 AND Bets = 1) RETURN Call FORCE
+WHEN (f$EffectiveMzone <= 10 AND Bets = 0) RETURN Check FORCE
+WHEN (f$EffectiveMzone <= 10) RETURN Fold FORCE
+
+// EN POSITION
+// Profil Tight - check de l adversaire (barrel turn)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.80) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.68) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.50 AND randomround < 0.6) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn <= 0.50 AND randomround < 0.25) RETURN f$RandomizedBarrel FORCE
+
+// Tight - prise d initiative au turn (premier a agir)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.85) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.70 AND f$DelayedCbetSituation) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.60 AND f$VillainCheckCallFlop AND randomround < 0.7) RETURN f$RandomizedDelayedCbet FORCE
+
+// Profil Regular - check de l adversaire (barrel turn)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.63) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.45 AND randomround < 0.7) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn <= 0.45 AND randomround < 0.35) RETURN f$RandomizedBarrel FORCE
+
+// Regular - prise d initiative au turn
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.80) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.65 AND f$DelayedCbetSituation) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.55 AND f$VillainCheckCallFlop AND randomround < 0.8) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND NOT f$BotBetFlop AND f$GoodTurnCard AND randomround < 0.4) RETURN f$RandomizedDelayedCbet FORCE
+
+// Profil Loose - check de l adversaire (barrel turn)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.70) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.58) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.40 AND randomround < 0.8) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$BotBetFlop AND f$prwin_Turn <= 0.40 AND randomround < 0.45) RETURN f$RandomizedBarrel FORCE
+
+// Loose - prise d initiative au turn
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.60 AND f$DelayedCbetSituation) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.50 AND f$VillainCheckCallFlop AND randomround < 0.9) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND NOT f$BotBetFlop AND f$GoodTurnCard AND randomround < 0.6) RETURN f$RandomizedDelayedCbet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets = 0) RETURN Check FORCE
+
+// Profil Tight - face a un bet turn (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Turn > 0.85) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Turn > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_Turn > 0.55 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet turn (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Turn > 0.80) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Turn > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Turn > 0.50 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_Turn > 0.35 AND randomround < 0.2 AND PotSize/AmountToCall > 4) RETURN Call FORCE
+
+// Profil Loose - face a un bet turn (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Turn > 0.75) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Turn > 0.60) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Turn > 0.45 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Turn > 0.30 AND randomround < 0.3 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_Turn < 0.45 AND randomround < 0.15 AND f$EffectiveMzone > 18) RETURN f$RandomizedRaiseTurn FORCE
+
+// Face a un check-raise au turn
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.90) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.60 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.85) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.55 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.80) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn > 0.50 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Bet AND f$prwin_Turn < 0.50 AND randomround < 0.2 AND f$EffectiveMzone > 20) RETURN f$RandomizedRaiseTurn FORCE
+
+// Face a plusieurs bets au turn en position
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_Turn > 0.85) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_Turn > 0.80) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_Turn > 0.75) RETURN Call FORCE
+
+// HORS POSITION
+// Profil Tight - premiere action au turn (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.80) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.65 AND randomround < 0.8) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.85) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.75 AND f$VillainCheckCallFlop) RETURN f$RandomizedLeadTurn FORCE
+
+// Profil Regular - premiere action au turn (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.60 AND randomround < 0.85) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.40 AND randomround < 0.4) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.80) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.70 AND f$VillainCheckCallFlop) RETURN f$RandomizedLeadTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.60 AND f$GoodTurnCard AND randomround < 0.5) RETURN f$RandomizedLeadTurn FORCE
+
+// Profil Loose - premiere action au turn (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.70) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.55 AND randomround < 0.9) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$BotBetFlop AND f$prwin_Turn > 0.35 AND randomround < 0.5) RETURN f$RandomizedBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.75) RETURN f$RandomizedValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.65 AND f$VillainCheckCallFlop) RETURN f$RandomizedLeadTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND NOT f$BotBetFlop AND f$prwin_Turn > 0.50 AND f$GoodTurnCard AND randomround < 0.7) RETURN f$RandomizedLeadTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets = 0 AND BotsActionsOnThisRound = 0) RETURN Check FORCE
+
+// Profil Tight - face a un bet apres notre check au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.85) RETURN f$RandomizedCheckRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.55 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet apres notre check au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.80) RETURN f$RandomizedCheckRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.50 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.40 AND randomround < 0.2 AND f$EffectiveMzone > 15) RETURN f$RandomizedCheckRaiseTurn FORCE
+
+// Profil Loose - face a un bet apres notre check au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.75) RETURN f$RandomizedCheckRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.60) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.45 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_Turn > 0.35 AND randomround < 0.3 AND f$EffectiveMzone > 15) RETURN f$RandomizedCheckRaiseTurn FORCE
+
+// Profil Tight - face a une action apres notre bet au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.65 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a une action apres notre bet au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.85) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.60 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn < 0.45 AND randomround < 0.15 AND f$EffectiveMzone > 20) RETURN f$RandomizedRaiseTurn FORCE
+
+// Profil Loose - face a une action apres notre bet au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.80) RETURN f$RandomizedRaiseTurn FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn > 0.55 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_Turn < 0.50 AND randomround < 0.25 AND f$EffectiveMzone > 18) RETURN f$RandomizedRaiseTurn FORCE
+
+// Face a plusieurs bets hors position au turn
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_Turn > 0.90) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_Turn > 0.85) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_Turn > 0.80) RETURN Call FORCE
+
+// Action par defaut (check ou fold)
+WHEN (Bets = 0) RETURN Check FORCE
+WHEN (Others) RETURN Fold FORCE
 
 
 ##f$river##
+// Strategie avancee pour la river en Spin and Go
+// Restructuree pour etre compatible avec OpenHoldem (une seule condition ouverte)
+// Utilise les memes profils que le preflop: 0=Tight, 1=Regular, 2=Loose
 
+// Situations d urgence avec tres petit stack
+WHEN (f$EffectiveMzone <= 3) RETURN RaiseMax FORCE
+
+// Short stack - en position
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_River > 0.75) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_River > 0.65 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND f$InPosition AND f$prwin_River > 0.65 AND Bets = 1) RETURN Call FORCE
+
+// Short stack - hors position
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_River > 0.80) RETURN RaiseMax FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_River > 0.70 AND Bets = 0) RETURN RaisePot FORCE
+WHEN (f$EffectiveMzone <= 10 AND NOT f$InPosition AND f$prwin_River > 0.70 AND Bets = 1) RETURN Call FORCE
+WHEN (f$EffectiveMzone <= 10 AND Bets = 0) RETURN Check FORCE
+WHEN (f$EffectiveMzone <= 10) RETURN Fold FORCE
+
+// EN POSITION - PROFIL TIGHT
+// Profil Tight - check de l adversaire (value bet/bluff)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_River > 0.85) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_River > 0.70) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_River > 0.55 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND f$prwin_River < 0.30 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.30) RETURN f$RandomizedThirdBarrel FORCE
+
+// Profil Regular - check de l adversaire (value bet/bluff)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River > 0.80) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River > 0.65) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River > 0.50 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River < 0.30 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.45) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND f$prwin_River < 0.25 AND f$BotBetFlop AND f$VillainCheckCallTurn AND randomround < 0.30) RETURN f$RandomizedSmallBluff FORCE
+
+// Profil Loose - check de l adversaire (value bet/bluff)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_River > 0.75) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_River > 0.60) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_River > 0.45 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_River < 0.30 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.60) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND f$prwin_River < 0.25 AND f$BotBetFlop AND f$VillainCheckCallTurn AND randomround < 0.45) RETURN f$RandomizedSmallBluff FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets = 0) RETURN Check FORCE
+
+// EN POSITION - FACE A UN BET
+// Profil Tight - face a un bet river (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_River > 0.90) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_River > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND f$prwin_River > 0.60 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet river (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_River > 0.85) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_River > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_River > 0.55 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND f$prwin_River < 0.20 AND randomround < 0.15 AND AmountToCall < StackSize * 0.3 AND f$BluffCatchingSituation) RETURN f$RandomizedRaiseRiver FORCE
+
+// Profil Loose - face a un bet river (call/raise/fold)
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_River > 0.80) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_River > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_River > 0.50 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND f$prwin_River < 0.25 AND randomround < 0.25 AND AmountToCall < StackSize * 0.4 AND f$BluffCatchingSituation) RETURN f$RandomizedRaiseRiver FORCE
+
+// Face a plusieurs bets a la river en position
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_River > 0.90) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_River > 0.85) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_River > 0.80) RETURN Call FORCE
+
+// HORS POSITION - PREMIeRE ACTION
+// Profil Tight - premiere action a la river (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.85) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.70) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.60 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River < 0.25 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.25) RETURN f$RandomizedThirdBarrel FORCE
+
+// Profil Regular - premiere action a la river (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.80) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.65) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.55 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River < 0.25 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.40) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River < 0.20 AND NOT f$BotBetTurn AND f$VillainCheckCallFlop AND randomround < 0.30) RETURN f$RandomizedSmallBluff FORCE
+
+// Profil Loose - premiere action a la river (lead)
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.75) RETURN f$RandomizedBigValueBet FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.60) RETURN f$RandomizedValueBetRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River > 0.50 AND f$BotBetTurn) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River < 0.25 AND f$BotBetFlop AND f$BotBetTurn AND f$ImprovingBoardForBluff AND randomround < 0.55) RETURN f$RandomizedThirdBarrel FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 0 AND BotsActionsOnThisRound = 0 AND f$prwin_River < 0.20 AND NOT f$BotBetTurn AND f$VillainCheckCallFlop AND randomround < 0.40) RETURN f$RandomizedSmallBluff FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets = 0 AND BotsActionsOnThisRound = 0) RETURN Check FORCE
+
+// HORS POSITION - FACE A UN BET
+// Profil Tight - face a un bet apres notre check a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.90) RETURN f$RandomizedCheckRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.60 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a un bet apres notre check a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.85) RETURN f$RandomizedCheckRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.70) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.55 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River < 0.20 AND randomround < 0.15 AND AmountToCall < StackSize * 0.3 AND f$BluffCatchingSituation) RETURN f$RandomizedCheckRaiseRiver FORCE
+
+// Profil Loose - face a un bet apres notre check a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.80) RETURN f$RandomizedCheckRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.65) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River > 0.50 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND BotsLastAction = Check AND f$prwin_River < 0.25 AND randomround < 0.25 AND AmountToCall < StackSize * 0.4 AND f$BluffCatchingSituation) RETURN f$RandomizedCheckRaiseRiver FORCE
+
+// Profil Tight - face a une action apres notre bet a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.95) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.85) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 0 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.70 AND PotSize/AmountToCall > 3) RETURN Call FORCE
+
+// Profil Regular - face a une action apres notre bet a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.90) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.80) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 1 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.65 AND PotSize/AmountToCall > 2.5) RETURN Call FORCE
+
+// Profil Loose - face a une action apres notre bet a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.85) RETURN f$RandomizedRaiseRiver FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.75) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND f$ProfileType = 2 AND Bets = 1 AND BotsActionsOnThisRound = 1 AND (BotsLastAction = Bet OR BotsLastAction = RaisePot OR BotsLastAction = RaiseHalfPot) AND f$prwin_River > 0.60 AND PotSize/AmountToCall > 2) RETURN Call FORCE
+
+// Face a plusieurs bets hors position a la river
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 0 AND f$prwin_River > 0.95) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 1 AND f$prwin_River > 0.90) RETURN Call FORCE
+WHEN (f$EffectiveMzone > 10 AND NOT f$InPosition AND Bets >= 2 AND f$ProfileType = 2 AND f$prwin_River > 0.85) RETURN Call FORCE
+
+// Action par defaut (check ou fold)
+WHEN (Bets = 0) RETURN Check FORCE
+WHEN (Others) RETURN Fold FORCE
 
 
 ##f$BigBlindRaising##
 // Verifie si la big blind a relance
 (raischair == bigblindchair)
+
+
+##f$BluffCatchingSituation##
+// Situation favorable pour bluff-catcher (adversaire peut avoir beaucoup de bluffs)
+(f$BotCheckedTurn AND f$VillainBetRiver) OR (f$ImprovingBoardForBluff AND f$OneWayPot)
+
+
+##f$BotBetFlop##
+// Verifie si on a mise au flop
+(BotsActionsOnFlop >= 1 AND (BotRaisedOnFlop OR didbetsizeround_flop > 0))
+
+
+##f$BotBetTurn##
+// Verifie si on a mise au turn
+(BotsActionsOnTurn >= 1 AND (BotRaisedOnTurn OR didbetsizeround_turn > 0))
+
+
+##f$BotCheckedTurn##
+(didchecround_turn > 0)
 
 
 ##f$ButtonRaising##
@@ -96,6 +547,11 @@ WHEN (Others) Fold FORCE
 // FONCTIONS DE DeTECTION DE SCeNARIOS COMMUNS
 //
 //////////////////////////////////////////////////////////////////////////////
+
+
+##f$DelayedCbetSituation##
+// On a raise preflop et check au flop, on peut faire un delayed cbet
+(BotRaisedBeforeFlop AND didchecround_flop)
 
 
 ##f$EffectiveMzone##
@@ -128,16 +584,47 @@ WHEN (Others) RETURN false FORCE
 //////////////////////////////////////////////////////////////////////////////
 
 
+##f$FlushDrawFlop##
+// Detecte si nous avons une couleur ou tirage couleur
+HaveFlushDraw OR HaveFlush
+
+
+##f$GoodTurnCard##
+// La carte au turn est bonne pour nous (overcard notamment)
+(TurnCardIsOvercardToBoard) OR (FlopCardPairedOnTurn)
+
+
+##f$HeroCbetPossible##
+// Determine si on peut faire un c-bet (on etait l agresseur preflop)
+BotRaisedBeforeFlop OR BotsLastPreflopAction = Raise
+
+
+##f$ImprovingBoardForBluff##
+// Board qui ameliore notre range pour bluffer
+(RiverCardIsOvercardToBoard) OR (f$PairOnRiver) OR (FlushPossible) OR (StraightPossible)
+
+
 ##f$InPosition##
 // Check if Hero is IP or OOP
 WHEN (betposition = nplayersplaying) RETURN true FORCE
 WHEN (Others) RETURN false FORCE
+
+//////////////////////////////////////////////////////////////////////////////
+//
+// FONCTIONS ANALYTIQUES POUR LE FLOP
+//
+//////////////////////////////////////////////////////////////////////////////
 
 
 ##f$LimpOrIsolateLimpers##
 // 1 or more limps before us
 WHEN (BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls >= 1) RETURN true FORCE
 WHEN (Others) RETURN false FORCE
+
+
+##f$MonsterFlop##
+// Detecte si nous avons un monstre
+f$prwin_Flop > 0.8 OR HaveSet OR HaveTrips OR HaveFullHouse OR HaveQuads OR HaveStraightFlush
 
 
 ##f$MultyWayPot##
@@ -188,6 +675,12 @@ nopponentsplaying
 + (((balance8 / bblind) < f$ShortStackBB) AND (playersplayingbits & 0b0100000000) ? 1:0)
 + (((balance9 / bblind) < f$ShortStackBB) AND (playersplayingbits & 0b1000000000) ? 1:0)
 
+
+##f$PairOnRiver##
+(RiverCard == FirstFlopCard) OR
+(RiverCard == SecondFlopCard) OR
+(RiverCard == ThirdFlopCard) OR
+(RiverCard == TurnCard)
 
 
 ##f$PreFlopBigBlind##
@@ -307,6 +800,7 @@ WHEN (f$Facing3BetBeforeFirstAction)
 
 WHEN (Others) RETURN Fold FORCE
 
+
 ##f$PreFlopButton##
 // Strategie quand on est au bouton (premiere position a agir en 3-max)
 
@@ -363,6 +857,7 @@ WHEN (BotsActionsOnThisRoundIncludingChecks > 0 AND BotsLastAction = Call AND Ra
 
 // Si nous arrivons ici, c est un cas non prevu
 WHEN (Others) RETURN Fold FORCE
+
 
 ##f$PreFlopSmallBlind##
 // Strategie quand on est en small blind
@@ -483,6 +978,78 @@ WHEN (randomround < 0.70) RETURN 1 FORCE  // 55% Regular
 WHEN (Others) RETURN 2 FORCE         // 30% Loose
 
 
+##f$RandomizedBarrel##
+// Create randomized barrel bet sizes
+WHEN (randomround < 0.65) RETURN RaiseHalfPot FORCE    // Barrel standard a 50%
+WHEN (randomround < 0.85) RETURN RaiseThirdPot FORCE   // Barrel petit a 33%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // Barrel plus gros a 66%
+WHEN (Others) RETURN RaisePot FORCE                    // Rarement pot
+
+
+##f$RandomizedBigValueBet##
+// Grosse mise de valorisation avec nuts
+WHEN (randomround < 0.60) RETURN RaisePot FORCE         // Big value standard au pot
+WHEN (randomround < 0.80) RETURN (1.2 * PotSize) FORCE  // Overbet 120%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // Parfois plus petit pour induire
+WHEN (Others) RETURN RaiseMax FORCE                     // Rarement all-in
+
+
+##f$RandomizedCbet##
+// Create randomized continuation bet sizes
+WHEN (randomround < 0.65) RETURN RaiseHalfPot FORCE    // C-bet standard a 50%
+WHEN (randomround < 0.85) RETURN RaiseThirdPot FORCE   // C-bet petit a 33%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // C-bet plus gros a 66%
+WHEN (Others) RETURN RaisePot FORCE                     // Rarement pot
+
+
+##f$RandomizedCheckRaiseFlop##
+// Create randomized check-raise sizes
+WHEN (randomround < 0.60) RETURN RaisePot FORCE          // Check-raise standard au pot
+WHEN (randomround < 0.85) RETURN RaiseTwoThirdPot FORCE  // Check-raise modere a 66%
+WHEN (randomround < 0.95) RETURN (2 * AmountToCall) FORCE // Check-raise a 2x le bet
+WHEN (Others) RETURN RaiseMax FORCE                       // Parfois all-in
+
+
+##f$RandomizedCheckRaiseRiver##
+// Create randomized check-raise sizes a la river
+WHEN (randomround < 0.55) RETURN RaisePot FORCE           // Check-raise standard au pot
+WHEN (randomround < 0.85) RETURN (2 * AmountToCall) FORCE // Check-raise a 2x le bet
+WHEN (randomround < 0.95) RETURN (3 * AmountToCall) FORCE // Check-raise a 3x le bet
+WHEN (Others) RETURN RaiseMax FORCE                       // Parfois all-in
+
+
+##f$RandomizedCheckRaiseTurn##
+// Create randomized check-raise sizes au turn
+WHEN (randomround < 0.60) RETURN RaisePot FORCE          // Check-raise standard au pot
+WHEN (randomround < 0.85) RETURN RaiseTwoThirdPot FORCE  // Check-raise modere a 66%
+WHEN (randomround < 0.95) RETURN (2 * AmountToCall) FORCE // Check-raise a 2x le bet
+WHEN (Others) RETURN RaiseMax FORCE                       // Parfois all-in
+
+
+##f$RandomizedDelayedCbet##
+// Delayed cbet sizing (apres avoir check au flop)
+WHEN (randomround < 0.60) RETURN RaiseHalfPot FORCE     // Standard a 50%
+WHEN (randomround < 0.85) RETURN RaiseThirdPot FORCE    // Petit a 33%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // Plus gros a 66%
+WHEN (Others) RETURN RaisePot FORCE                     // Rarement pot
+
+
+##f$RandomizedDonkBet##
+// Donk bet sizing (mise OOP quand on n etait pas l agresseur preflop)
+WHEN (randomround < 0.60) RETURN RaiseHalfPot FORCE     // Donk standard a 50%
+WHEN (randomround < 0.85) RETURN RaiseThirdPot FORCE    // Donk petit a 33%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // Donk plus gros a 66%
+WHEN (Others) RETURN RaisePot FORCE                     // Rarement pot
+
+
+##f$RandomizedLeadTurn##
+// Lead bet sizing (mise OOP au turn)
+WHEN (randomround < 0.60) RETURN RaiseHalfPot FORCE     // Lead standard a 50%
+WHEN (randomround < 0.85) RETURN RaiseThirdPot FORCE    // Lead petit a 33%
+WHEN (randomround < 0.95) RETURN RaiseTwoThirdPot FORCE // Lead plus gros a 66%
+WHEN (Others) RETURN RaisePot FORCE                     // Rarement pot
+
+
 ##f$RandomizedRaise##
 // Create randomroundized raise sizes
 WHEN (randomround < 0.15 AND f$EffectiveMzone > 10) RETURN Call FORCE  // Very occasionally limp some hands when deep
@@ -490,6 +1057,31 @@ WHEN (randomround < 0.65) RETURN (2.2) FORCE          // Standard raise to 2.5-3
 WHEN (randomround < 0.85) RETURN Raise FORCE                           // Sometimes min-raise
 WHEN (randomround < 0.95) RETURN (3) FORCE          // Occasionally raise larger
 WHEN (Others) RETURN (2.5) FORCE                 // Rarely make an unusual sizing
+
+
+##f$RandomizedRaiseFlop##
+// Create randomized raise sizes (pour reraise)
+WHEN (f$EffectiveMzone < 15 OR randomround < 0.2 OR f$prwin_Flop > 0.85) RETURN RaiseMax FORCE // Avec peu de blindes ou mains tres fortes, shove
+WHEN (randomround < 0.70) RETURN (2.5 * AmountToCall) FORCE // Reraise standard a 2.5x
+WHEN (randomround < 0.90) RETURN RaisePot FORCE             // Reraise au pot
+WHEN (Others) RETURN (3 * AmountToCall) FORCE               // Parfois 3x
+
+
+##f$RandomizedRaiseRiver##
+// Create randomized raise sizes (pour reraise a la river)
+WHEN (f$EffectiveMzone < 15 OR randomround < 0.2 OR f$prwin_River > 0.90) RETURN RaiseMax FORCE // Avec peu de blindes ou mains tres fortes, shove
+WHEN (randomround < 0.65) RETURN (2.5 * AmountToCall) FORCE // Reraise standard a 2.5x
+WHEN (randomround < 0.85) RETURN RaisePot FORCE             // Reraise au pot
+WHEN (randomround < 0.95) RETURN (3 * AmountToCall) FORCE   // Parfois 3x
+WHEN (Others) RETURN (2 * AmountToCall) FORCE               // Parfois 2x
+
+
+##f$RandomizedRaiseTurn##
+// Create randomized raise sizes (pour reraise au turn)
+WHEN (f$EffectiveMzone < 15 OR randomround < 0.2 OR f$prwin_Turn > 0.85) RETURN RaiseMax FORCE // Avec peu de blindes ou mains tres fortes, shove
+WHEN (randomround < 0.70) RETURN (2.5 * AmountToCall) FORCE // Reraise standard a 2.5x
+WHEN (randomround < 0.90) RETURN RaisePot FORCE             // Reraise au pot
+WHEN (Others) RETURN (3 * AmountToCall) FORCE               // Parfois 3x
 
 
 ##f$RandomizedReraise##
@@ -505,6 +1097,36 @@ WHEN (Others) RETURN (ncurrentbets * (3 + (randomround * 1.5 + Call))) FORCE    
 // STRATeGIES PAR POSITION
 //
 //////////////////////////////////////////////////////////////////////////////
+
+
+##f$RandomizedSmallBluff##
+// Petit bluff a la river
+WHEN (randomround < 0.60) RETURN RaiseThirdPot FORCE    // Petit bluff a 33%
+WHEN (randomround < 0.90) RETURN (0.4 * PotSize) FORCE  // Sizing 40%
+WHEN (Others) RETURN RaiseHalfPot FORCE                 // Parfois 50%
+
+
+##f$RandomizedThirdBarrel##
+// Create randomized third barrel bet sizes
+WHEN (randomround < 0.60) RETURN RaiseTwoThirdPot FORCE // Third barrel standard a 66%
+WHEN (randomround < 0.80) RETURN RaisePot FORCE         // Third barrel pot
+WHEN (randomround < 0.95) RETURN RaiseHalfPot FORCE     // Parfois petit pour induire
+WHEN (Others) RETURN (0.75 * PotSize) FORCE             // Trois-quarts du pot
+
+
+##f$RandomizedValueBet##
+// Mise de valorisation plus grosse qu un c-bet standard
+WHEN (randomround < 0.70) RETURN RaiseTwoThirdPot FORCE // Value bet standard a 66%
+WHEN (randomround < 0.90) RETURN RaisePot FORCE         // Value bet pot
+WHEN (Others) RETURN RaiseHalfPot FORCE                 // Parfois plus petit pour induire
+
+
+##f$RandomizedValueBetRiver##
+// Mise de valorisation a la river
+WHEN (randomround < 0.65) RETURN RaiseTwoThirdPot FORCE // Value bet standard a 66%
+WHEN (randomround < 0.85) RETURN RaiseHalfPot FORCE     // Parfois plus petit pour induire
+WHEN (randomround < 0.95) RETURN RaisePot FORCE         // Parfois pot
+WHEN (Others) RETURN (0.8 * PotSize) FORCE              // Mix sizing
 
 
 ##f$ShortStackBB##
@@ -523,15 +1145,40 @@ WHEN (BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 1 AND CallsSinceLas
 WHEN (Others) RETURN false FORCE
 
 
+##f$StraightDrawFlop##
+// Detecte si nous avons une quinte ou tirage quinte
+HaveStraightDraw OR HaveOpenEndedStraightDraw OR HaveInsideStraightDraw OR HaveStraight
+
+
 ##f$ThreeBetColdCall##
 // 1 Raise before us, no calls
 WHEN (BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 1 AND CallsSinceLastRaise = 0) RETURN true FORCE
 WHEN (Others) RETURN false FORCE
 
 
+##f$TopPairPlusFlop##
+// Detecte si nous avons top pair ou mieux
+HaveTopPair OR HaveOverPair OR HaveTrips OR HaveSet OR HaveTwoPair OR HaveFullHouse
+
+
 ##f$TwoWayPot##
 WHEN (nopponentsplaying = 2) RETURN true FORCE
 WHEN (Others) RETURN false FORCE
+
+
+##f$VillainBetRiver##
+// L adversaire a mise a la river en premier
+(Bets = 1 AND BotsActionsOnThisRound = 0)
+
+
+##f$VillainCheckCallFlop##
+// Verifie si l adversaire a check-call au flop
+(BotRaisedOnFlop AND NOT RaisesSinceLastPlay)
+
+
+##f$VillainCheckCallTurn##
+// Verifie si l adversaire a check-call au turn
+(BotRaisedOnTurn AND NOT RaisesSinceLastPlay)
 
 
 ##f$isshortstack##
@@ -549,6 +1196,27 @@ WHEN (Others) RETURN false FORCE
 ##f$prwin_adjusted##
 // Ajuste le prwin en fonction du nombre d adversaires
 // Les seuils sont plus bas heads-up qu a 3 joueurs
+WHEN (nopponentsplaying = 1 AND f$Opponents = 1) RETURN (prwin * 1.15) FORCE
+WHEN (Others) RETURN prwin FORCE
+
+
+##f$prwin_Flop##
+// Ajuste le prwin en fonction du nombre d adversaires au flop
+// Plus agressif heads-up qu a plusieurs joueurs
+WHEN (nopponentsplaying = 1 AND f$Opponents = 1) RETURN (prwin * 1.2) FORCE
+WHEN (Others) RETURN prwin FORCE
+
+
+##f$prwin_River##
+// Ajuste le prwin en fonction du nombre d adversaires a la river
+// Plus agressif heads-up qu a plusieurs joueurs
+WHEN (nopponentsplaying = 1 AND f$Opponents = 1) RETURN (prwin * 1.1) FORCE
+WHEN (Others) RETURN prwin FORCE
+
+
+##f$prwin_Turn##
+// Ajuste le prwin en fonction du nombre d adversaires au turn
+// Plus agressif heads-up qu a plusieurs joueurs
 WHEN (nopponentsplaying = 1 AND f$Opponents = 1) RETURN (prwin * 1.15) FORCE
 WHEN (Others) RETURN prwin FORCE
 
