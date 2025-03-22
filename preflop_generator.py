@@ -441,6 +441,9 @@ class PreflopProfileGenerator:
         profile += "// Main preflop decision function that uses OpenPPL library functions\n"
         profile += "// to detect scenarios and then calls our decision functions\n\n"
 
+        profile += "// Check for Push/Fold mode first\n"
+        profile += "WHEN f$InPushFoldMode RETURN f$PushFoldPreflop FORCE\n\n"
+
         profile += "// Open Raise or Open Limp\n"
         profile += "WHEN (BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0) RETURN f$OpenRaiseOrOpenLimp FORCE\n\n"
 
@@ -512,6 +515,9 @@ class PreflopProfileGenerator:
         profile += "WHEN HaveTwoPair  RETURN BetPot FORCE\n"
         profile += "WHEN Others RETURN Check FORCE\n\n"
 
+        # Add Push/Fold strategy
+        profile += self.add_push_fold_strategy(settings)
+
         profile += "//*****************************************************************************\n"
         profile += "//\n"
         profile += "// END OF PROFILE\n"
@@ -519,3 +525,583 @@ class PreflopProfileGenerator:
         profile += "//*****************************************************************************"
         
         return profile
+        
+    def add_push_fold_strategy(self, settings):
+        """
+        Add Push or Fold strategy to the preflop profile
+        
+        Args:
+            settings (dict): Settings dictionary containing push/fold parameters
+            
+        Returns:
+            str: Push/fold strategy text to be added to the profile
+        """
+        # Extract general aggressive factor from settings
+        aggression = settings.get("aggression", 50)
+        aggressive_factor = aggression / 50  # 0-2 range where 1 is neutral
+        
+        # Create ranges based on stack size
+        # Format: { BB_range: { position: range_percentage } }
+        # Push ranges by stack size (different for each position)
+        push_ranges = {
+            # 1 BB
+            "1": {
+                "EP": settings.get("push_1bb_ep", 75),
+                "MP": settings.get("push_1bb_mp", 80),
+                "CO": settings.get("push_1bb_co", 85),
+                "BN": settings.get("push_1bb_btn", 90),
+                "SB": settings.get("push_1bb_sb", 92),
+                "BB": settings.get("push_1bb_bb", 95)
+            },
+            # 2 BB
+            "2": {
+                "EP": settings.get("push_2bb_ep", 60),
+                "MP": settings.get("push_2bb_mp", 65),
+                "CO": settings.get("push_2bb_co", 70),
+                "BN": settings.get("push_2bb_btn", 75),
+                "SB": settings.get("push_2bb_sb", 80),
+                "BB": settings.get("push_2bb_bb", 85)
+            },
+            # 3 BB
+            "3": {
+                "EP": settings.get("push_3bb_ep", 45),
+                "MP": settings.get("push_3bb_mp", 50),
+                "CO": settings.get("push_3bb_co", 55),
+                "BN": settings.get("push_3bb_btn", 60),
+                "SB": settings.get("push_3bb_sb", 65),
+                "BB": settings.get("push_3bb_bb", 70)
+            },
+            # 4 BB
+            "4": {
+                "EP": settings.get("push_4bb_ep", 35),
+                "MP": settings.get("push_4bb_mp", 40),
+                "CO": settings.get("push_4bb_co", 45),
+                "BN": settings.get("push_4bb_btn", 50),
+                "SB": settings.get("push_4bb_sb", 55),
+                "BB": settings.get("push_4bb_bb", 60)
+            },
+            # 5 BB
+            "5": {
+                "EP": settings.get("push_5bb_ep", 28),
+                "MP": settings.get("push_5bb_mp", 32),
+                "CO": settings.get("push_5bb_co", 36),
+                "BN": settings.get("push_5bb_btn", 40),
+                "SB": settings.get("push_5bb_sb", 45),
+                "BB": settings.get("push_5bb_bb", 50)
+            },
+            # 6 BB
+            "6": {
+                "EP": settings.get("push_6bb_ep", 22),
+                "MP": settings.get("push_6bb_mp", 26),
+                "CO": settings.get("push_6bb_co", 30),
+                "BN": settings.get("push_6bb_btn", 35),
+                "SB": settings.get("push_6bb_sb", 40),
+                "BB": settings.get("push_6bb_bb", 45)
+            },
+            # 7 BB
+            "7": {
+                "EP": settings.get("push_7bb_ep", 18),
+                "MP": settings.get("push_7bb_mp", 22),
+                "CO": settings.get("push_7bb_co", 26),
+                "BN": settings.get("push_7bb_btn", 30),
+                "SB": settings.get("push_7bb_sb", 35),
+                "BB": settings.get("push_7bb_bb", 40)
+            },
+            # 8 BB
+            "8": {
+                "EP": settings.get("push_8bb_ep", 15),
+                "MP": settings.get("push_8bb_mp", 18),
+                "CO": settings.get("push_8bb_co", 22),
+                "BN": settings.get("push_8bb_btn", 26),
+                "SB": settings.get("push_8bb_sb", 30),
+                "BB": settings.get("push_8bb_bb", 35)
+            },
+            # 9 BB
+            "9": {
+                "EP": settings.get("push_9bb_ep", 12),
+                "MP": settings.get("push_9bb_mp", 15),
+                "CO": settings.get("push_9bb_co", 18),
+                "BN": settings.get("push_9bb_btn", 22),
+                "SB": settings.get("push_9bb_sb", 26),
+                "BB": settings.get("push_9bb_bb", 30)
+            },
+            # 10 BB
+            "10": {
+                "EP": settings.get("push_10bb_ep", 10),
+                "MP": settings.get("push_10bb_mp", 12),
+                "CO": settings.get("push_10bb_co", 15),
+                "BN": settings.get("push_10bb_btn", 18),
+                "SB": settings.get("push_10bb_sb", 22),
+                "BB": settings.get("push_10bb_bb", 25)
+            },
+            # 10-15 BB
+            "10-15": {
+                "EP": settings.get("push_10_15bb_ep", 8),
+                "MP": settings.get("push_10_15bb_mp", 10),
+                "CO": settings.get("push_10_15bb_co", 12),
+                "BN": settings.get("push_10_15bb_btn", 15),
+                "SB": settings.get("push_10_15bb_sb", 18),
+                "BB": settings.get("push_10_15bb_bb", 20)
+            },
+            # 15-20 BB
+            "15-20": {
+                "EP": settings.get("push_15_20bb_ep", 5),
+                "MP": settings.get("push_15_20bb_mp", 8),
+                "CO": settings.get("push_15_20bb_co", 10),
+                "BN": settings.get("push_15_20bb_btn", 12),
+                "SB": settings.get("push_15_20bb_sb", 15),
+                "BB": settings.get("push_15_20bb_bb", 18)
+            },
+            # 20-25 BB
+            "20-25": {
+                "EP": settings.get("push_20_25bb_ep", 3),
+                "MP": settings.get("push_20_25bb_mp", 5),
+                "CO": settings.get("push_20_25bb_co", 7),
+                "BN": settings.get("push_20_25bb_btn", 10),
+                "SB": settings.get("push_20_25bb_sb", 12),
+                "BB": settings.get("push_20_25bb_bb", 15)
+            }
+        }
+        
+        # Calling push ranges by stack size (similar structure)
+        call_push_ranges = {
+            # 1 BB
+            "1": {
+                "vs_EP": settings.get("call_1bb_vs_ep", 60),
+                "vs_MP": settings.get("call_1bb_vs_mp", 65),
+                "vs_CO": settings.get("call_1bb_vs_co", 70),
+                "vs_BN": settings.get("call_1bb_vs_btn", 75),
+                "vs_SB": settings.get("call_1bb_vs_sb", 80)
+            },
+            # 2 BB
+            "2": {
+                "vs_EP": settings.get("call_2bb_vs_ep", 50),
+                "vs_MP": settings.get("call_2bb_vs_mp", 55),
+                "vs_CO": settings.get("call_2bb_vs_co", 60),
+                "vs_BN": settings.get("call_2bb_vs_btn", 65),
+                "vs_SB": settings.get("call_2bb_vs_sb", 70)
+            },
+            # 3 BB
+            "3": {
+                "vs_EP": settings.get("call_3bb_vs_ep", 40),
+                "vs_MP": settings.get("call_3bb_vs_mp", 45),
+                "vs_CO": settings.get("call_3bb_vs_co", 50),
+                "vs_BN": settings.get("call_3bb_vs_btn", 55),
+                "vs_SB": settings.get("call_3bb_vs_sb", 60)
+            },
+            # 4 BB
+            "4": {
+                "vs_EP": settings.get("call_4bb_vs_ep", 30),
+                "vs_MP": settings.get("call_4bb_vs_mp", 35),
+                "vs_CO": settings.get("call_4bb_vs_co", 40),
+                "vs_BN": settings.get("call_4bb_vs_btn", 45),
+                "vs_SB": settings.get("call_4bb_vs_sb", 50)
+            },
+            # 5 BB
+            "5": {
+                "vs_EP": settings.get("call_5bb_vs_ep", 25),
+                "vs_MP": settings.get("call_5bb_vs_mp", 28),
+                "vs_CO": settings.get("call_5bb_vs_co", 32),
+                "vs_BN": settings.get("call_5bb_vs_btn", 36),
+                "vs_SB": settings.get("call_5bb_vs_sb", 40)
+            },
+            # 6-10 BB
+            "6-10": {
+                "vs_EP": settings.get("call_6_10bb_vs_ep", 20),
+                "vs_MP": settings.get("call_6_10bb_vs_mp", 22),
+                "vs_CO": settings.get("call_6_10bb_vs_co", 25),
+                "vs_BN": settings.get("call_6_10bb_vs_btn", 28),
+                "vs_SB": settings.get("call_6_10bb_vs_sb", 32)
+            },
+            # 10-15 BB
+            "10-15": {
+                "vs_EP": settings.get("call_10_15bb_vs_ep", 15),
+                "vs_MP": settings.get("call_10_15bb_vs_mp", 18),
+                "vs_CO": settings.get("call_10_15bb_vs_co", 20),
+                "vs_BN": settings.get("call_10_15bb_vs_btn", 22),
+                "vs_SB": settings.get("call_10_15bb_vs_sb", 25)
+            },
+            # 15-25 BB
+            "15-25": {
+                "vs_EP": settings.get("call_15_25bb_vs_ep", 10),
+                "vs_MP": settings.get("call_15_25bb_vs_mp", 12),
+                "vs_CO": settings.get("call_15_25bb_vs_co", 15),
+                "vs_BN": settings.get("call_15_25bb_vs_btn", 18),
+                "vs_SB": settings.get("call_15_25bb_vs_sb", 20)
+            }
+        }
+        
+        # Apply aggression adjustments
+        for bb_range in push_ranges:
+            for position in push_ranges[bb_range]:
+                # Adjust push ranges based on aggression (more aggressive = wider pushing range)
+                push_ranges[bb_range][position] = min(98, round(push_ranges[bb_range][position] * (0.8 + 0.4 * aggressive_factor)))
+                
+        for bb_range in call_push_ranges:
+            for vs_position in call_push_ranges[bb_range]:
+                # Adjust call ranges based on aggression (more aggressive = wider calling range)
+                call_push_ranges[bb_range][vs_position] = min(95, round(call_push_ranges[bb_range][vs_position] * (0.8 + 0.4 * aggressive_factor)))
+        
+        # Convert percentages to thresholds
+        push_thresholds = {}
+        call_push_thresholds = {}
+        
+        for bb_range in push_ranges:
+            push_thresholds[bb_range] = {}
+            for position in push_ranges[bb_range]:
+                push_thresholds[bb_range][position] = self.get_handrank_threshold(push_ranges[bb_range][position])
+                
+        for bb_range in call_push_ranges:
+            call_push_thresholds[bb_range] = {}
+            for vs_position in call_push_ranges[bb_range]:
+                call_push_thresholds[bb_range][vs_position] = self.get_handrank_threshold(call_push_ranges[bb_range][vs_position])
+        
+        # Generate the push/fold section
+        push_fold = "\n//*****************************************************************************\n"
+        push_fold += "//\n"
+        push_fold += "// PUSH OR FOLD STRATEGY\n"
+        push_fold += "//\n"
+        push_fold += "// Generated with detailed stack size ranges:\n"
+        push_fold += "// - 1BB, 2BB, 3BB, 4BB, 5BB, 6BB, 7BB, 8BB, 9BB, 10BB, 10-15BB, 15-20BB, 20-25BB\n"
+        push_fold += "//\n"
+        push_fold += "// Aggression Factor applied: " + str(aggressive_factor) + "x\n"
+        push_fold += "//\n"
+        push_fold += "//*****************************************************************************\n\n"
+        
+        # Function to determine if we're in Push/Fold mode
+        push_fold += "##f$InPushFoldMode##\n"
+        push_fold += "// Determine if we're in push/fold mode (less than 25 BBs)\n"
+        push_fold += "WHEN StackSize < 25 AND !(Tournament AND CurrentHandNumber < 5) RETURN true FORCE\n"
+        push_fold += "WHEN Others RETURN false FORCE\n\n"
+        
+        # Main Push/Fold function
+        push_fold += "##f$PushFoldPreflop##\n"
+        push_fold += "// Main push/fold function based on stack size\n"
+        
+        # 1BB range
+        push_fold += "// 1BB range\n"
+        push_fold += "WHEN StackSize <= 1 RETURN f$PushFold_1BB FORCE\n\n"
+        
+        # 2BB range
+        push_fold += "// 2BB range\n"
+        push_fold += "WHEN StackSize > 1 AND StackSize <= 2 RETURN f$PushFold_2BB FORCE\n\n"
+        
+        # 3BB range
+        push_fold += "// 3BB range\n"
+        push_fold += "WHEN StackSize > 2 AND StackSize <= 3 RETURN f$PushFold_3BB FORCE\n\n"
+        
+        # 4BB range
+        push_fold += "// 4BB range\n"
+        push_fold += "WHEN StackSize > 3 AND StackSize <= 4 RETURN f$PushFold_4BB FORCE\n\n"
+        
+        # 5BB range
+        push_fold += "// 5BB range\n"
+        push_fold += "WHEN StackSize > 4 AND StackSize <= 5 RETURN f$PushFold_5BB FORCE\n\n"
+        
+        # 6BB range
+        push_fold += "// 6BB range\n"
+        push_fold += "WHEN StackSize > 5 AND StackSize <= 6 RETURN f$PushFold_6BB FORCE\n\n"
+        
+        # 7BB range
+        push_fold += "// 7BB range\n"
+        push_fold += "WHEN StackSize > 6 AND StackSize <= 7 RETURN f$PushFold_7BB FORCE\n\n"
+        
+        # 8BB range
+        push_fold += "// 8BB range\n"
+        push_fold += "WHEN StackSize > 7 AND StackSize <= 8 RETURN f$PushFold_8BB FORCE\n\n"
+        
+        # 9BB range
+        push_fold += "// 9BB range\n"
+        push_fold += "WHEN StackSize > 8 AND StackSize <= 9 RETURN f$PushFold_9BB FORCE\n\n"
+        
+        # 10BB range
+        push_fold += "// 10BB range\n"
+        push_fold += "WHEN StackSize > 9 AND StackSize <= 10 RETURN f$PushFold_10BB FORCE\n\n"
+        
+        # 10-15BB range
+        push_fold += "// 10-15BB range\n"
+        push_fold += "WHEN StackSize > 10 AND StackSize <= 15 RETURN f$PushFold_10_15BB FORCE\n\n"
+        
+        # 15-20BB range
+        push_fold += "// 15-20BB range\n"
+        push_fold += "WHEN StackSize > 15 AND StackSize <= 20 RETURN f$PushFold_15_20BB FORCE\n\n"
+        
+        # 20-25BB range
+        push_fold += "// 20-25BB range\n"
+        push_fold += "WHEN StackSize > 20 AND StackSize <= 25 RETURN f$PushFold_20_25BB FORCE\n\n"
+        
+        # Default action
+        push_fold += "// Default action\n"
+        push_fold += "WHEN Others RETURN Fold FORCE\n\n"
+        
+        # Create individual functions for each stack size range
+        # 1BB range function
+        push_fold += self.create_push_fold_function("1", push_thresholds, call_push_thresholds)
+        
+        # 2BB range function
+        push_fold += self.create_push_fold_function("2", push_thresholds, call_push_thresholds)
+        
+        # 3BB range function
+        push_fold += self.create_push_fold_function("3", push_thresholds, call_push_thresholds)
+        
+        # 4BB range function
+        push_fold += self.create_push_fold_function("4", push_thresholds, call_push_thresholds)
+        
+        # 5BB range function
+        push_fold += self.create_push_fold_function("5", push_thresholds, call_push_thresholds)
+        
+        # 6BB range function
+        push_fold += self.create_push_fold_function("6", push_thresholds, call_push_thresholds)
+        
+        # 7BB range function
+        push_fold += self.create_push_fold_function("7", push_thresholds, call_push_thresholds)
+        
+        # 8BB range function
+        push_fold += self.create_push_fold_function("8", push_thresholds, call_push_thresholds)
+        
+        # 9BB range function
+        push_fold += self.create_push_fold_function("9", push_thresholds, call_push_thresholds)
+        
+        # 10BB range function
+        push_fold += self.create_push_fold_function("10", push_thresholds, call_push_thresholds)
+        
+        # 10-15BB range function
+        push_fold += self.create_push_fold_function("10-15", push_thresholds, call_push_thresholds)
+        
+        # 15-20BB range function
+        push_fold += self.create_push_fold_function("15-20", push_thresholds, call_push_thresholds)
+        
+        # 20-25BB range function
+        push_fold += self.create_push_fold_function("20-25", push_thresholds, call_push_thresholds)
+        
+        return push_fold
+        
+    def create_push_fold_function(self, bb_range, push_thresholds, call_push_thresholds):
+        """Create a function for a specific stack size range"""
+        function_name = f"f$PushFold_{bb_range.replace('-', '_')}BB"
+        function = f"##" + function_name + "##\n"
+        function += f"// Push/Fold strategy for {bb_range}BB stack\n\n"
+        
+        # Open Push decisions
+        function += "// No action before us (first to act)\n"
+        
+        # Early Position Push Ranges
+        function += "// Early Position Push\n"
+        function += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 AND handrank169 <= {push_thresholds[bb_range]['EP']} RETURN RaiseMax FORCE\n\n"
+        
+        # Middle Position Push Ranges
+        function += "// Middle Position Push\n"
+        function += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 AND handrank169 <= {push_thresholds[bb_range]['MP']} RETURN RaiseMax FORCE\n\n"
+        
+        # Late Position Push Ranges
+        function += "// CO and Button Push\n"
+        function += f"WHEN InCutOff AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 AND handrank169 <= {push_thresholds[bb_range]['CO']} RETURN RaiseMax FORCE\n"
+        function += f"WHEN InButton AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 AND handrank169 <= {push_thresholds[bb_range]['BN']} RETURN RaiseMax FORCE\n\n"
+        
+        # Blinds Push Ranges
+        function += "// SB Push\n"
+        function += f"WHEN InSmallBlind AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 AND handrank169 <= {push_thresholds[bb_range]['SB']} RETURN RaiseMax FORCE\n\n"
+        
+        function += "// BB Check or Push over limps\n"
+        function += f"WHEN InBigBlind AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls = 0 RETURN Check FORCE\n"
+        function += f"WHEN InBigBlind AND BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls > 0 AND handrank169 <= {push_thresholds[bb_range]['BB']} RETURN RaiseMax FORCE\n\n"
+        
+        # Push over limpers
+        function += "// Push over limpers (from any position)\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND Raises = 0 AND Calls > 0 AND handrank169 <= {round(push_thresholds[bb_range]['CO'] * 0.8)} RETURN RaiseMax FORCE\n\n"
+        
+        # Determine which call range to use based on stack size
+        call_range = bb_range
+        if bb_range in ["6", "7", "8", "9", "10"]:
+            call_range = "6-10"
+        elif bb_range in ["15-20", "20-25"]:
+            call_range = "15-25"
+            
+        # Call all-in from EP
+        function += "// Call all-in when EP pushes\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (LastRaiserPosition <= 3) AND (AmountToCall >= StackSize * 0.8) AND handrank169 <= {call_push_thresholds[call_range]['vs_EP']} RETURN Call FORCE\n\n"
+        
+        # Call all-in from MP
+        function += "// Call all-in when MP pushes\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (LastRaiserPosition > 3 AND LastRaiserPosition <= 6) AND (AmountToCall >= StackSize * 0.8) AND handrank169 <= {call_push_thresholds[call_range]['vs_MP']} RETURN Call FORCE\n\n"
+        
+        # Call all-in from CO
+        function += "// Call all-in when CO pushes\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (LastRaiserPosition = nplayersdealt - 2) AND (AmountToCall >= StackSize * 0.8) AND handrank169 <= {call_push_thresholds[call_range]['vs_CO']} RETURN Call FORCE\n\n"
+        
+        # Call all-in from BN
+        function += "// Call all-in when BN pushes\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (LastRaiserPosition = nplayersdealt - 1) AND (AmountToCall >= StackSize * 0.8) AND handrank169 <= {call_push_thresholds[call_range]['vs_BN']} RETURN Call FORCE\n\n"
+        
+        # Call all-in from SB
+        function += "// Call all-in when SB pushes\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (LastRaiserPosition = nplayersdealt) AND (AmountToCall >= StackSize * 0.8) AND handrank169 <= {call_push_thresholds[call_range]['vs_SB']} RETURN Call FORCE\n\n"
+        
+        # Face standard raises (not all-in)
+        function += "// Face standard raises (push or fold)\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND (RaisesSinceLastPlay = 1) AND (AmountToCall < StackSize * 0.8) AND handrank169 <= {round(call_push_thresholds[call_range]['vs_EP'] * 0.7)} RETURN RaiseMax FORCE\n\n"
+        
+        # Multiple all-ins
+        function += "// Face multiple all-ins\n"
+        function += f"WHEN BotsActionsOnThisRoundIncludingChecks = 0 AND Raises >= 2 AND handrank169 <= {round(call_push_thresholds[call_range]['vs_EP'] * 0.4)} RETURN Call FORCE\n\n"
+        
+        # Default action
+        function += "// Default action\n"
+        function += "WHEN Others RETURN Fold FORCE\n\n"
+        
+        return function
+
+    def collect_push_fold_settings(self):
+        """Gather push/fold settings from the UI"""
+        # This method would be called by the UI to gather push/fold settings
+        # Implement the actual UI collection in main.py
+        # Return default values for now
+        return {
+            # 1BB stack ranges
+            "push_1bb_ep": 75,
+            "push_1bb_mp": 80,
+            "push_1bb_co": 85,
+            "push_1bb_btn": 90,
+            "push_1bb_sb": 92,
+            "push_1bb_bb": 95,
+            "call_1bb_vs_ep": 60,
+            "call_1bb_vs_mp": 65,
+            "call_1bb_vs_co": 70,
+            "call_1bb_vs_btn": 75,
+            "call_1bb_vs_sb": 80,
+            
+            # 2BB stack ranges
+            "push_2bb_ep": 60,
+            "push_2bb_mp": 65,
+            "push_2bb_co": 70,
+            "push_2bb_btn": 75,
+            "push_2bb_sb": 80,
+            "push_2bb_bb": 85,
+            "call_2bb_vs_ep": 50,
+            "call_2bb_vs_mp": 55,
+            "call_2bb_vs_co": 60,
+            "call_2bb_vs_btn": 65,
+            "call_2bb_vs_sb": 70,
+            
+            # 3BB stack ranges
+            "push_3bb_ep": 45,
+            "push_3bb_mp": 50,
+            "push_3bb_co": 55,
+            "push_3bb_btn": 60,
+            "push_3bb_sb": 65,
+            "push_3bb_bb": 70,
+            "call_3bb_vs_ep": 40,
+            "call_3bb_vs_mp": 45,
+            "call_3bb_vs_co": 50,
+            "call_3bb_vs_btn": 55,
+            "call_3bb_vs_sb": 60,
+            
+            # 4BB stack ranges
+            "push_4bb_ep": 35,
+            "push_4bb_mp": 40,
+            "push_4bb_co": 45,
+            "push_4bb_btn": 50,
+            "push_4bb_sb": 55,
+            "push_4bb_bb": 60,
+            "call_4bb_vs_ep": 30,
+            "call_4bb_vs_mp": 35,
+            "call_4bb_vs_co": 40,
+            "call_4bb_vs_btn": 45,
+            "call_4bb_vs_sb": 50,
+            
+            # 5BB stack ranges
+            "push_5bb_ep": 28,
+            "push_5bb_mp": 32,
+            "push_5bb_co": 36,
+            "push_5bb_btn": 40,
+            "push_5bb_sb": 45,
+            "push_5bb_bb": 50,
+            "call_5bb_vs_ep": 25,
+            "call_5bb_vs_mp": 28,
+            "call_5bb_vs_co": 32,
+            "call_5bb_vs_btn": 36,
+            "call_5bb_vs_sb": 40,
+            
+            # 6BB stack ranges
+            "push_6bb_ep": 22,
+            "push_6bb_mp": 26,
+            "push_6bb_co": 30,
+            "push_6bb_btn": 35,
+            "push_6bb_sb": 40,
+            "push_6bb_bb": 45,
+            
+            # 7BB stack ranges
+            "push_7bb_ep": 18,
+            "push_7bb_mp": 22,
+            "push_7bb_co": 26,
+            "push_7bb_btn": 30,
+            "push_7bb_sb": 35,
+            "push_7bb_bb": 40,
+            
+            # 8BB stack ranges
+            "push_8bb_ep": 15,
+            "push_8bb_mp": 18,
+            "push_8bb_co": 22,
+            "push_8bb_btn": 26,
+            "push_8bb_sb": 30,
+            "push_8bb_bb": 35,
+            
+            # 9BB stack ranges
+            "push_9bb_ep": 12,
+            "push_9bb_mp": 15,
+            "push_9bb_co": 18,
+            "push_9bb_btn": 22,
+            "push_9bb_sb": 26,
+            "push_9bb_bb": 30,
+            
+            # 10BB stack ranges
+            "push_10bb_ep": 10,
+            "push_10bb_mp": 12,
+            "push_10bb_co": 15,
+            "push_10bb_btn": 18,
+            "push_10bb_sb": 22,
+            "push_10bb_bb": 25,
+            
+            # 6-10BB call ranges
+            "call_6_10bb_vs_ep": 20,
+            "call_6_10bb_vs_mp": 22,
+            "call_6_10bb_vs_co": 25,
+            "call_6_10bb_vs_btn": 28,
+            "call_6_10bb_vs_sb": 32,
+            
+            # 10-15BB stack ranges
+            "push_10_15bb_ep": 8,
+            "push_10_15bb_mp": 10,
+            "push_10_15bb_co": 12,
+            "push_10_15bb_btn": 15,
+            "push_10_15bb_sb": 18,
+            "push_10_15bb_bb": 20,
+            "call_10_15bb_vs_ep": 15,
+            "call_10_15bb_vs_mp": 18,
+            "call_10_15bb_vs_co": 20,
+            "call_10_15bb_vs_btn": 22,
+            "call_10_15bb_vs_sb": 25,
+            
+            # 15-20BB stack ranges
+            "push_15_20bb_ep": 5,
+            "push_15_20bb_mp": 8,
+            "push_15_20bb_co": 10,
+            "push_15_20bb_btn": 12,
+            "push_15_20bb_sb": 15,
+            "push_15_20bb_bb": 18,
+            
+            # 20-25BB stack ranges
+            "push_20_25bb_ep": 3,
+            "push_20_25bb_mp": 5,
+            "push_20_25bb_co": 7,
+            "push_20_25bb_btn": 10,
+            "push_20_25bb_sb": 12,
+            "push_20_25bb_bb": 15,
+            
+            # 15-25BB call ranges
+            "call_15_25bb_vs_ep": 10,
+            "call_15_25bb_vs_mp": 12,
+            "call_15_25bb_vs_co": 15,
+            "call_15_25bb_vs_btn": 18,
+            "call_15_25bb_vs_sb": 20
+        }
