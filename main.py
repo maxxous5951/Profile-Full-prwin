@@ -4,6 +4,7 @@ import os
 from preflop_generator import PreflopProfileGenerator
 from flop_generator import FlopProfileGenerator
 from turn_generator import TurnProfileGenerator
+from river_generator import RiverProfileGenerator
 
 class OpenHoldemProfileGenerator:
     def __init__(self, root):
@@ -55,10 +56,25 @@ class OpenHoldemProfileGenerator:
         self.scare_card_adjust = tk.IntVar(value=-15)
         self.draw_complete_adjust = tk.IntVar(value=10)
         
+        # River variables
+        self.third_barrel_freq = tk.IntVar(value=40)
+        self.delayed_second_barrel_freq = tk.IntVar(value=30)
+        self.ip_river_bet_size = tk.StringVar(value="75")
+        self.oop_river_bet_size = tk.StringVar(value="75")
+        self.river_checkraise_freq = tk.IntVar(value=15)
+        self.river_float_freq = tk.IntVar(value=20)
+        self.river_probe_freq = tk.IntVar(value=25)
+        self.river_fold_to_bet_freq = tk.IntVar(value=70)
+        self.river_bluff_raise_freq = tk.IntVar(value=10)
+        self.river_value_range = tk.IntVar(value=60)
+        self.river_bluff_range = tk.IntVar(value=15)
+        self.river_check_behind_range = tk.IntVar(value=80)
+        
         # Create the generators
         self.preflop_generator = PreflopProfileGenerator()
         self.flop_generator = FlopProfileGenerator()
         self.turn_generator = TurnProfileGenerator()
+        self.river_generator = RiverProfileGenerator()
         
         # Setup the UI
         self.create_ui()
@@ -148,6 +164,7 @@ class OpenHoldemProfileGenerator:
         self.create_preflop_tab(notebook)
         self.create_flop_tab(notebook)
         self.create_turn_tab(notebook)
+        self.create_river_tab(notebook)
         
         # Additional tabs for future expansion
         facing3bet_frame = ttk.Frame(notebook)
@@ -432,6 +449,78 @@ class OpenHoldemProfileGenerator:
         for frame in [second_barrel_frame, turn_card_frame, facing_turn_frame, probe_frame]:
             frame.columnconfigure(1, weight=1)
     
+    def create_river_tab(self, notebook):
+        river_frame = ttk.Frame(notebook)
+        notebook.add(river_frame, text="River Settings")
+        
+        # Third Barrel settings
+        barrel_frame = ttk.LabelFrame(river_frame, text="Third Barrel Settings")
+        barrel_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(barrel_frame, text="Third Barrel Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(barrel_frame, from_=0, to=100, variable=self.third_barrel_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(barrel_frame, textvariable=self.third_barrel_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(barrel_frame, text="Delayed Second Barrel Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(barrel_frame, from_=0, to=100, variable=self.delayed_second_barrel_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(barrel_frame, textvariable=self.delayed_second_barrel_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(barrel_frame, text="IP River Bet Size (% of pot):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(barrel_frame, textvariable=self.ip_river_bet_size, values=["50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(barrel_frame, text="OOP River Bet Size (% of pot):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(barrel_frame, textvariable=self.oop_river_bet_size, values=["50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=3, column=1, padx=5, pady=5)
+        
+        # Facing River bets
+        facing_river_frame = ttk.LabelFrame(river_frame, text="Facing River Bets")
+        facing_river_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(facing_river_frame, text="River Check-Raise Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_river_frame, from_=0, to=100, variable=self.river_checkraise_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_river_frame, textvariable=self.river_checkraise_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_river_frame, text="River Float Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_river_frame, from_=0, to=100, variable=self.river_float_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_river_frame, textvariable=self.river_float_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_river_frame, text="River Fold to Bet Frequency (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_river_frame, from_=0, to=100, variable=self.river_fold_to_bet_freq, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_river_frame, textvariable=self.river_fold_to_bet_freq).grid(row=2, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_river_frame, text="River Bluff Raise Frequency (%):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_river_frame, from_=0, to=100, variable=self.river_bluff_raise_freq, orient="horizontal").grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_river_frame, textvariable=self.river_bluff_raise_freq).grid(row=3, column=2, padx=5, pady=5)
+        
+        # River Hand Ranges
+        river_ranges_frame = ttk.LabelFrame(river_frame, text="River Hand Ranges")
+        river_ranges_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(river_ranges_frame, text="River Value Range (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(river_ranges_frame, from_=0, to=100, variable=self.river_value_range, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(river_ranges_frame, textvariable=self.river_value_range).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(river_ranges_frame, text="River Bluff Range (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(river_ranges_frame, from_=0, to=100, variable=self.river_bluff_range, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(river_ranges_frame, textvariable=self.river_bluff_range).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(river_ranges_frame, text="River Check Behind Range (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(river_ranges_frame, from_=0, to=100, variable=self.river_check_behind_range, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(river_ranges_frame, textvariable=self.river_check_behind_range).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Probe betting (River)
+        river_probe_frame = ttk.LabelFrame(river_frame, text="River Probe Betting")
+        river_probe_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(river_probe_frame, text="River Probe Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(river_probe_frame, from_=0, to=100, variable=self.river_probe_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(river_probe_frame, textvariable=self.river_probe_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        # Make columns expandable
+        for frame in [barrel_frame, facing_river_frame, river_ranges_frame, river_probe_frame]:
+            frame.columnconfigure(1, weight=1)
+    
     def collect_preflop_settings(self):
         """Gather all preflop settings from the UI into a dictionary"""
         return {
@@ -500,19 +589,39 @@ class OpenHoldemProfileGenerator:
             "aggression": self.aggression.get()  # Including global aggression for adjustments
         }
     
+    def collect_river_settings(self):
+        """Gather all river settings from the UI into a dictionary"""
+        return {
+            "third_barrel_freq": self.third_barrel_freq.get(),
+            "delayed_second_barrel_freq": self.delayed_second_barrel_freq.get(),
+            "ip_river_bet_size": self.ip_river_bet_size.get(),
+            "oop_river_bet_size": self.oop_river_bet_size.get(),
+            "river_checkraise_freq": self.river_checkraise_freq.get(),
+            "river_float_freq": self.river_float_freq.get(),
+            "river_probe_freq": self.river_probe_freq.get(),
+            "river_fold_to_bet_freq": self.river_fold_to_bet_freq.get(),
+            "river_bluff_raise_freq": self.river_bluff_raise_freq.get(),
+            "river_value_range": self.river_value_range.get(),
+            "river_bluff_range": self.river_bluff_range.get(),
+            "river_check_behind_range": self.river_check_behind_range.get(),
+            "aggression": self.aggression.get()  # Including global aggression for adjustments
+        }
+    
     def generate_profile(self):
         # Get all settings from UI
         preflop_settings = self.collect_preflop_settings()
         flop_settings = self.collect_flop_settings()
         turn_settings = self.collect_turn_settings()
+        river_settings = self.collect_river_settings()
         
         # Generate profile using the generators
         preflop_profile = self.preflop_generator.generate_preflop_profile(preflop_settings)
         flop_profile = self.flop_generator.generate_flop_profile(flop_settings)
         turn_profile = self.turn_generator.generate_turn_profile(turn_settings)
+        river_profile = self.river_generator.generate_river_profile(river_settings)
         
         # Combine the profiles
-        full_profile = preflop_profile + "\n\n" + flop_profile + "\n\n" + turn_profile
+        full_profile = preflop_profile + "\n\n" + flop_profile + "\n\n" + turn_profile + "\n\n" + river_profile
         
         # Display in preview
         self.preview_text.delete(1.0, tk.END)
