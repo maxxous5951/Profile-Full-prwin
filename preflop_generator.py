@@ -65,7 +65,7 @@ class PreflopProfileGenerator:
     
     def generate_preflop_profile(self, settings):
         """Generate the preflop part of the OpenHoldem profile"""
-        # Extract settings
+        # Extract basic settings
         num_players = settings["num_players"]
         game_type = settings["game_type"]
         aggression = settings["aggression"]
@@ -76,10 +76,50 @@ class PreflopProfileGenerator:
         squeeze_frequency = settings["squeeze_frequency"]
         open_raise_size = settings["open_raise_size"]
         
+        # Extract specific settings from tabs
+        # Open Raise tab
+        ep_range = settings["ep_range"]
+        mp_range = settings["mp_range"]
+        lp_range = settings["lp_range"] 
+        ep_sizing = settings["ep_sizing"]
+        mp_sizing = settings["mp_sizing"]
+        lp_sizing = settings["lp_sizing"]
+        
+        # Facing 3-Bet tab
+        call_3bet_range = settings["call_3bet_range"]
+        fourbet_vs_3bet_range = settings["fourbet_range"]
+        ip_3bet_adjust = settings["ip_3bet_adjust"] / 100.0  # Convert to decimal
+        vs_lp_3bet_adjust = settings["vs_lp_3bet_adjust"] / 100.0  # Convert to decimal
+        
+        # Facing 4-Bet tab
+        call_4bet_range = settings["call_4bet_range"]
+        fivebet_range = settings["fivebet_range"]
+        short_stack_4bet = settings["short_stack_4bet"] / 100.0  # Convert to decimal
+        
+        # Squeeze tab
+        squeeze_1caller = settings["squeeze_1caller"]
+        squeeze_multi = settings["squeeze_multi"]
+        squeeze_sizing = settings["squeeze_sizing"]
+        blinds_squeeze = settings["blinds_squeeze"] / 100.0  # Convert to decimal
+        btn_squeeze = settings["btn_squeeze"] / 100.0  # Convert to decimal
+        
         # Convert slider values to thresholds
         tight_threshold = self.get_handrank_threshold(tightness)
         aggressive_factor = aggression / 50  # 0-2 range where 1 is neutral
         limp_factor = limp_frequency / 50  # 0-2 range where 1 is default frequency
+        
+        # Specific thresholds for position-based ranges
+        ep_raise_threshold = self.get_handrank_threshold(ep_range)
+        mp_raise_threshold = self.get_handrank_threshold(mp_range)
+        lp_raise_threshold = self.get_handrank_threshold(lp_range)
+        
+        # Specific thresholds for 3-bet/4-bet/squeeze reactions
+        call_3bet_threshold = self.get_handrank_threshold(call_3bet_range)
+        fourbet_vs_3bet_threshold = self.get_handrank_threshold(fourbet_vs_3bet_range)
+        call_4bet_threshold = self.get_handrank_threshold(call_4bet_range)
+        fivebet_threshold = self.get_handrank_threshold(fivebet_range)
+        squeeze_1caller_threshold = self.get_handrank_threshold(squeeze_1caller)
+        squeeze_multi_threshold = self.get_handrank_threshold(squeeze_multi)
         
         # Adjust 3bet/4bet/squeeze frequencies based on aggression
         # Higher aggression = higher 3bet/4bet frequencies
@@ -95,8 +135,15 @@ class PreflopProfileGenerator:
         # Determine which positions exist based on number of players
         position_map = self.get_position_map(num_players)
         
-        # Adjust raise sizes based on aggression
+        # Adjust raise sizes based on aggression and position
         adjusted_open_raise = self.calculate_raise_size(open_raise_size, 0, aggressive_factor)
+        ep_open_raise = self.calculate_raise_size(ep_sizing, 0, aggressive_factor)
+        mp_open_raise = self.calculate_raise_size(mp_sizing, 0, aggressive_factor)
+        lp_open_raise = self.calculate_raise_size(lp_sizing, 0, aggressive_factor)
+        
+        # Calculate squeeze size
+        squeeze_bet_size = float(squeeze_sizing)
+        adjusted_squeeze_size = self.calculate_raise_size(squeeze_sizing, 0, aggressive_factor * 1.2)  # More aggressive for squeezes
         
         # Generate the profile text using string concatenation instead of a single f-string
         # to avoid issues with very long strings
@@ -113,6 +160,13 @@ class PreflopProfileGenerator:
         profile += f"// - 4-Bet Frequency: {fourbet_frequency}% (Adjusted: {fourbet_frequency * fourbet_adjustment:.1f}%)\n"
         profile += f"// - Squeeze Frequency: {squeeze_frequency}% (Adjusted: {squeeze_frequency * squeeze_adjustment:.1f}%)\n"
         profile += f"// - Open Raise Size: {open_raise_size}x (Adjusted: {adjusted_open_raise}x)\n"
+        profile += "//\n"
+        profile += "// Position-Based Settings:\n"
+        profile += f"// - Early Position Range: {ep_range}% (Threshold: {ep_raise_threshold})\n"
+        profile += f"// - Middle Position Range: {mp_range}% (Threshold: {mp_raise_threshold})\n"
+        profile += f"// - Late Position Range: {lp_range}% (Threshold: {lp_raise_threshold})\n"
+        profile += f"// - Squeeze vs 1 Caller: {squeeze_1caller}% (Threshold: {squeeze_1caller_threshold})\n"
+        profile += f"// - Squeeze vs 2+ Callers: {squeeze_multi}% (Threshold: {squeeze_multi_threshold})\n"
         profile += "//\n"
         profile += "// Position Map for Table Size:\n"
         
@@ -132,71 +186,48 @@ class PreflopProfileGenerator:
         # Open Raise or Open Limp
         profile += "##f$OpenRaiseOrOpenLimp##\n"
         profile += "// No action (limp or raise) before us. Hero can Open the game by Raising or Limping\n"
-        profile += f"WHEN f$OpenRaiseOrOpenLimp_Decision = 2 RETURN {adjusted_open_raise} FORCE\n"
-        profile += "WHEN f$OpenRaiseOrOpenLimp_Decision = 1 RETURN Call FORCE\n"
+        profile += "WHEN InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3 RETURN f$OpenRaise_EarlyPosition FORCE\n"
+        profile += "WHEN InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3 RETURN f$OpenRaise_MiddlePosition FORCE\n"
+        profile += "WHEN InCutOff OR InButton RETURN f$OpenRaise_LatePosition FORCE\n"
+        profile += "WHEN InSmallBlind RETURN f$OpenRaise_SB FORCE\n"
+        profile += "WHEN InBigBlind RETURN Check FORCE\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
 
-        profile += "##f$OpenRaiseOrOpenLimp_Decision##\n"
-        profile += "// 0 = Fold, 1 = Limp, 2 = Raise\n"
+        # Early Position Open Raising
+        profile += "##f$OpenRaise_EarlyPosition##\n"
+        profile += f"WHEN handrank169 <= {ep_raise_threshold} RETURN {ep_open_raise} FORCE\n"
+        profile += f"WHEN handrank169 <= {round(tight_threshold * 0.7 * limp_factor)} RETURN Call FORCE\n"
+        profile += "WHEN Others RETURN Fold FORCE\n\n"
         
-        # Only include positions that exist in this game format
-        if position_map["EP1"] or position_map["EP2"] or position_map["EP3"]:
-            profile += "// Early Position (Under the Gun, UTG+1, UTG+2)\n"
-            ep_condition = []
-            if position_map["EP1"]:
-                ep_condition.append("InEarlyPosition1")
-            if position_map["EP2"]:
-                ep_condition.append("InEarlyPosition2") 
-            if position_map["EP3"]:
-                ep_condition.append("InEarlyPosition3")
-            
-            ep_condition_str = " OR ".join(ep_condition)
-            profile += f"WHEN ({ep_condition_str}) AND (handrank169 <= {round(tight_threshold * 0.5)}) RETURN 2 FORCE\n"
-            profile += f"WHEN ({ep_condition_str}) AND (handrank169 <= {round(tight_threshold * 0.7 * limp_factor)}) RETURN 1 FORCE\n\n"
-
-        if position_map["MP1"] or position_map["MP2"] or position_map["MP3"]:
-            profile += "// Middle Position (MP1, MP2, MP3)\n"
-            mp_condition = []
-            if position_map["MP1"]:
-                mp_condition.append("InMiddlePosition1")
-            if position_map["MP2"]:
-                mp_condition.append("InMiddlePosition2") 
-            if position_map["MP3"]:
-                mp_condition.append("InMiddlePosition3")
-            
-            mp_condition_str = " OR ".join(mp_condition)
-            profile += f"WHEN ({mp_condition_str}) AND (handrank169 <= {round(tight_threshold * 0.65)}) RETURN 2 FORCE\n"
-            profile += f"WHEN ({mp_condition_str}) AND (handrank169 <= {round(tight_threshold * 0.85 * limp_factor)}) RETURN 1 FORCE\n\n"
-
-        if position_map["CO"] or position_map["BTN"]:
-            profile += "// Late Position (CO, BTN)\n"
-            lp_condition = []
-            if position_map["CO"]:
-                lp_condition.append("InCutOff")
-            if position_map["BTN"]:
-                lp_condition.append("InButton") 
-            
-            lp_condition_str = " OR ".join(lp_condition)
-            profile += f"WHEN ({lp_condition_str}) AND (handrank169 <= {round(tight_threshold * 0.8)}) RETURN 2 FORCE\n"
-            profile += f"WHEN ({lp_condition_str}) AND (handrank169 <= {round(tight_threshold * limp_factor)}) RETURN 1 FORCE\n\n"
-
-        profile += "// Small Blind\n"
-        profile += f"WHEN InSmallBlind AND (handrank169 <= {round(tight_threshold * 0.75)}) RETURN 2 FORCE\n"
-        profile += f"WHEN InSmallBlind AND (handrank169 <= {round(tight_threshold * 0.9 * limp_factor)}) RETURN 1 FORCE\n\n"
-
-        profile += "// Big Blind (we only check here, handled in f$CheckOrBetOrRaise)\n"
-        profile += "WHEN InBigBlind RETURN 0 FORCE\n\n"
+        # Middle Position Open Raising
+        profile += "##f$OpenRaise_MiddlePosition##\n"
+        profile += f"WHEN handrank169 <= {mp_raise_threshold} RETURN {mp_open_raise} FORCE\n"
+        profile += f"WHEN handrank169 <= {round(tight_threshold * 0.85 * limp_factor)} RETURN Call FORCE\n"
+        profile += "WHEN Others RETURN Fold FORCE\n\n"
         
-        profile += "WHEN Others RETURN 0 FORCE\n\n"
+        # Late Position Open Raising
+        profile += "##f$OpenRaise_LatePosition##\n"
+        profile += f"WHEN handrank169 <= {lp_raise_threshold} RETURN {lp_open_raise} FORCE\n"
+        profile += f"WHEN handrank169 <= {round(tight_threshold * limp_factor)} RETURN Call FORCE\n"
+        profile += "WHEN Others RETURN Fold FORCE\n\n"
+        
+        # Small Blind Open Raising
+        profile += "##f$OpenRaise_SB##\n"
+        profile += f"WHEN handrank169 <= {round(lp_raise_threshold * 0.9)} RETURN {lp_open_raise} FORCE\n"
+        profile += f"WHEN handrank169 <= {round(tight_threshold * 0.9 * limp_factor)} RETURN Call FORCE\n"
+        profile += "WHEN Others RETURN Fold FORCE\n\n"
 
         # Limp Or Isolate Limpers
         profile += "##f$LimpOrIsolateLimpers##\n"
         profile += "// 1 or more limps before us. Hero can Limp too or Raise to isolate the limpers\n"
-        # Calculate isolation size based on aggression
-        iso_size = self.calculate_raise_size(open_raise_size, 1, aggressive_factor)
-        profile += f"WHEN f$LimpOrIsolateLimpers_Decision = 2 RETURN {iso_size} FORCE\n"
+        profile += "WHEN f$LimpOrIsolateLimpers_Decision = 2 RETURN f$IsolateSize FORCE\n"
         profile += "WHEN f$LimpOrIsolateLimpers_Decision = 1 RETURN Call FORCE\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
+
+        # Isolate sizing calculation based on number of limpers
+        profile += "##f$IsolateSize##\n"
+        profile += f"// Base open size: {open_raise_size}BB plus 1BB per limper\n"
+        profile += f"Calls * 1 + {adjusted_open_raise}\n\n"
 
         profile += "##f$LimpOrIsolateLimpers_Decision##\n"
         profile += "// 0 = Fold, 1 = Limp, 2 = Raise\n"
@@ -227,48 +258,48 @@ class PreflopProfileGenerator:
         profile += "// 0 = Fold, 1 = Call, 2 = 3-Bet\n"
         profile += "// Early Position 3-bet\n"
         profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(threebet_threshold * 0.5)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(tight_threshold * 0.6)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(call_3bet_threshold * 0.6)} RETURN 1 FORCE\n\n"
 
         profile += "// Middle Position 3-bet\n"
         profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(threebet_threshold * 0.65)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(tight_threshold * 0.7)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(call_3bet_threshold * 0.7)} RETURN 1 FORCE\n\n"
 
         profile += "// Late Position 3-bet\n"
         profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(threebet_threshold * 0.8)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(tight_threshold * 0.8)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(call_3bet_threshold * 0.8)} RETURN 1 FORCE\n\n"
 
         profile += "// Blinds 3-bet\n"
         profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(threebet_threshold * 0.7)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(tight_threshold * 0.75)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(call_3bet_threshold * 0.75)} RETURN 1 FORCE\n\n"
 
         profile += "// Against specific positions - 3-bet looser against late position raises\n"
-        profile += f"WHEN (DealPositionLastRaiser >= nplayersdealt - 2) AND handrank169 <= {round(threebet_threshold * 0.9)} RETURN 2 FORCE\n"
-        profile += f"WHEN (DealPositionLastRaiser >= nplayersdealt - 2) AND handrank169 <= {round(tight_threshold * 0.85)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (DealPositionLastRaiser >= nplayersdealt - 2) AND handrank169 <= {round(threebet_threshold * (1 + vs_lp_3bet_adjust))} RETURN 2 FORCE\n"
+        profile += f"WHEN (DealPositionLastRaiser >= nplayersdealt - 2) AND handrank169 <= {round(call_3bet_threshold * (1 + vs_lp_3bet_adjust))} RETURN 1 FORCE\n\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
         # Squeeze Cold Call
         profile += "##f$SqueezeColdCall##\n"
         profile += "// 1 Raise before Hero first action and 1 or more villains calls. Hero can Squeeze, ColdCall or Fold\n"
-        profile += "WHEN f$SqueezeColdCall_Decision = 2 RETURN RaisePot FORCE\n"
+        profile += f"WHEN f$SqueezeColdCall_Decision = 2 RETURN {adjusted_squeeze_size} * pot FORCE\n" 
         profile += "WHEN f$SqueezeColdCall_Decision = 1 RETURN Call FORCE\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
 
         profile += "##f$SqueezeColdCall_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = Squeeze\n"
         profile += "// Tighter squeeze range with more players in the pot\n"
-        profile += f"WHEN CallsSinceLastRaise = 1 AND handrank169 <= {round(squeeze_threshold * 0.7)} RETURN 2 FORCE\n"
+        profile += f"WHEN CallsSinceLastRaise = 1 AND handrank169 <= {squeeze_1caller_threshold} RETURN 2 FORCE\n"
         profile += f"WHEN CallsSinceLastRaise = 1 AND handrank169 <= {round(tight_threshold * 0.7)} RETURN 1 FORCE\n\n"
 
-        profile += f"WHEN CallsSinceLastRaise = 2 AND handrank169 <= {round(squeeze_threshold * 0.6)} RETURN 2 FORCE\n"
+        profile += f"WHEN CallsSinceLastRaise = 2 AND handrank169 <= {squeeze_multi_threshold} RETURN 2 FORCE\n"
         profile += f"WHEN CallsSinceLastRaise = 2 AND handrank169 <= {round(tight_threshold * 0.65)} RETURN 1 FORCE\n\n"
 
-        profile += f"WHEN CallsSinceLastRaise >= 3 AND handrank169 <= {round(squeeze_threshold * 0.5)} RETURN 2 FORCE\n"
+        profile += f"WHEN CallsSinceLastRaise >= 3 AND handrank169 <= {round(squeeze_multi_threshold * 0.8)} RETURN 2 FORCE\n"
         profile += f"WHEN CallsSinceLastRaise >= 3 AND handrank169 <= {round(tight_threshold * 0.6)} RETURN 1 FORCE\n\n"
 
         profile += "// Position-based adjustments\n"
-        profile += f"WHEN (InButton OR InCutOff) AND handrank169 <= {round(squeeze_threshold * 0.8)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(squeeze_threshold * 0.7)} RETURN 2 FORCE\n\n"
+        profile += f"WHEN (InButton) AND handrank169 <= {round(squeeze_1caller_threshold * (1 + btn_squeeze))} RETURN 2 FORCE\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(squeeze_1caller_threshold * (1 + blinds_squeeze))} RETURN 2 FORCE\n\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
@@ -282,20 +313,23 @@ class PreflopProfileGenerator:
         profile += "##f$Facing3BetBeforeFirstAction_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = 4-Bet\n"
         profile += "// Very tight 4-betting range from early position\n"
-        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(fourbet_threshold * 0.4)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(tight_threshold * 0.5)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.4)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(call_3bet_threshold * 0.5)} RETURN 1 FORCE\n\n"
 
         profile += "// Middle position\n"
-        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(fourbet_threshold * 0.5)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(tight_threshold * 0.55)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.5)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(call_3bet_threshold * 0.55)} RETURN 1 FORCE\n\n"
 
         profile += "// Late position\n"
-        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(fourbet_threshold * 0.6)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(tight_threshold * 0.6)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.6)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(call_3bet_threshold * 0.6)} RETURN 1 FORCE\n\n"
 
         profile += "// Blinds\n"
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(fourbet_threshold * 0.55)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(tight_threshold * 0.55)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.55)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(call_3bet_threshold * 0.55)} RETURN 1 FORCE\n\n"
+
+        profile += "// Stack depth considerations\n"
+        profile += f"WHEN StackSize < 50 AND handrank169 <= {round(fourbet_vs_3bet_threshold * (1 + short_stack_4bet))} RETURN 2 FORCE\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
@@ -308,17 +342,15 @@ class PreflopProfileGenerator:
 
         profile += "##f$Facing4BetBeforeFirstAction_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = 5-Bet (All-In)\n"
-        profile += "// Very narrow 5-bet range, mostly premium hands\n"
-        profile += "WHEN handrank169 <= 5 RETURN 2 FORCE  // AA, KK, QQ, AKs, AKo\n"
-        profile += "WHEN handrank169 <= 20 RETURN 1 FORCE // Top ~12% hands\n\n"
-
+        profile += f"WHEN handrank169 <= {fivebet_threshold} RETURN 2 FORCE\n"
+        profile += f"WHEN handrank169 <= {call_4bet_threshold} RETURN 1 FORCE\n"
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
         # Facing 5Bet Before First Action
         profile += "##f$Facing5BetBeforeFirstAction##\n"
         profile += "// 5bet before Hero first action. Hero can Push, ColdCall or Fold\n"
-        profile += "WHEN handrank169 <= 5 RETURN RaiseMax FORCE  // AA, KK, QQ, AKs, AKo\n"
-        profile += "WHEN handrank169 <= 10 RETURN Call FORCE     // Top ~6% hands\n"
+        profile += f"WHEN handrank169 <= {round(fivebet_threshold * 0.8)} RETURN RaiseMax FORCE\n"
+        profile += f"WHEN handrank169 <= {round(call_4bet_threshold * 0.8)} RETURN Call FORCE\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
 
         # Facing 3Bet
@@ -331,19 +363,29 @@ class PreflopProfileGenerator:
         profile += "##f$Facing3Bet_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = 4-Bet\n"
         profile += "// Adjust based on position\n"
-        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(fourbet_threshold * 0.45)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(tight_threshold * 0.55)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.45)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InEarlyPosition1 OR InEarlyPosition2 OR InEarlyPosition3) AND handrank169 <= {round(call_3bet_threshold * 0.55)} RETURN 1 FORCE\n\n"
 
-        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(fourbet_threshold * 0.55)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(tight_threshold * 0.6)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.55)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InMiddlePosition1 OR InMiddlePosition2 OR InMiddlePosition3) AND handrank169 <= {round(call_3bet_threshold * 0.6)} RETURN 1 FORCE\n\n"
 
-        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(fourbet_threshold * 0.65)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(tight_threshold * 0.7)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.65)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InCutOff OR InButton) AND handrank169 <= {round(call_3bet_threshold * 0.7)} RETURN 1 FORCE\n\n"
 
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(fourbet_threshold * 0.6)} RETURN 2 FORCE\n"
-        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(tight_threshold * 0.65)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.6)} RETURN 2 FORCE\n"
+        profile += f"WHEN (InSmallBlind OR InBigBlind) AND handrank169 <= {round(call_3bet_threshold * 0.65)} RETURN 1 FORCE\n\n"
+
+        profile += "// Position adjustment - more aggressive in position\n"
+        profile += f"WHEN f$InPosition AND handrank169 <= {round(fourbet_vs_3bet_threshold * (1 + ip_3bet_adjust))} RETURN 2 FORCE\n"
+        profile += f"WHEN f$InPosition AND handrank169 <= {round(call_3bet_threshold * (1 + ip_3bet_adjust))} RETURN 1 FORCE\n\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
+
+        # In Position helper function
+        profile += "##f$InPosition##\n"
+        profile += "// Helper function to determine if we're in position vs the 3bettor\n"
+        profile += "WHEN LastAggressorActsAfterUs RETURN false FORCE\n"
+        profile += "WHEN Others RETURN true FORCE\n\n"
 
         # Facing Squeeze
         profile += "##f$FacingSqueeze##\n"
@@ -355,8 +397,12 @@ class PreflopProfileGenerator:
         profile += "##f$FacingSqueeze_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = 4-Bet\n"
         profile += "// Generally tighter than regular 3-bet defense\n"
-        profile += f"WHEN handrank169 <= {round(fourbet_threshold * 0.5)} RETURN 2 FORCE\n"
-        profile += f"WHEN handrank169 <= {round(tight_threshold * 0.55)} RETURN 1 FORCE\n\n"
+        profile += f"WHEN handrank169 <= {round(fourbet_vs_3bet_threshold * 0.5)} RETURN 2 FORCE\n"
+        profile += f"WHEN handrank169 <= {round(call_3bet_threshold * 0.55)} RETURN 1 FORCE\n\n"
+
+        profile += "// Adjust based on number of callers between raise and squeeze\n"
+        profile += f"WHEN CallsSinceLastRaise = 1 AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.55)} RETURN 2 FORCE\n"
+        profile += f"WHEN CallsSinceLastRaise >= 2 AND handrank169 <= {round(fourbet_vs_3bet_threshold * 0.45)} RETURN 2 FORCE\n\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
@@ -369,16 +415,18 @@ class PreflopProfileGenerator:
 
         profile += "##f$Facing4Bet_Decision##\n"
         profile += "// 0 = Fold, 1 = Call, 2 = 5-Bet (All-In)\n"
-        profile += "WHEN handrank169 <= 5 RETURN 2 FORCE  // AA, KK, QQ, AKs, AKo\n"
-        profile += "WHEN handrank169 <= 15 RETURN 1 FORCE // Top ~9% hands\n\n"
+        profile += f"WHEN handrank169 <= {fivebet_threshold} RETURN 2 FORCE\n"
+        profile += f"WHEN handrank169 <= {call_4bet_threshold} RETURN 1 FORCE\n"
+        profile += "// Stack depth considerations\n"
+        profile += f"WHEN StackSize < 50 AND handrank169 <= {round(fivebet_threshold * (1 + short_stack_4bet))} RETURN 2 FORCE\n\n"
 
         profile += "WHEN Others RETURN 0 FORCE\n\n"
 
         # Facing 5Bet
         profile += "##f$Facing5Bet##\n"
         profile += "// Hero 4bet and facing 5bet. Hero can Push, Call or Fold\n"
-        profile += "WHEN handrank169 <= 5 RETURN RaiseMax FORCE  // AA, KK, QQ, AKs, AKo\n"
-        profile += "WHEN handrank169 <= 8 RETURN Call FORCE      // Top ~5% hands\n"
+        profile += f"WHEN handrank169 <= {round(fivebet_threshold * 0.8)} RETURN RaiseMax FORCE\n"
+        profile += f"WHEN handrank169 <= {round(call_4bet_threshold * 0.6)} RETURN Call FORCE\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
 
         # Additional functions
@@ -429,9 +477,44 @@ class PreflopProfileGenerator:
         profile += "// Default action if no scenario is matched\n"
         profile += "WHEN Others RETURN Fold FORCE\n\n"
 
+        # Post-flop placeholders (to be expanded later)
         profile += "//*****************************************************************************\n"
         profile += "//\n"
-        profile += "// END OF PREFLOP PROFILE\n"
+        profile += "// POST-FLOP PLACEHOLDERS\n"
+        profile += "// These are basic placeholders that would need to be expanded\n"
+        profile += "//\n"
+        profile += "//*****************************************************************************\n\n"
+
+        profile += "##f$flop##\n"
+        profile += "// Basic C-bet strategy\n"
+        profile += "WHEN BotRaisedBeforeFlop AND BotsActionsOnThisRoundIncludingChecks = 0 AND f$InPosition RETURN BetHalfPot FORCE\n"
+        profile += "WHEN HaveTopPair OR HaveOverPair OR HaveStrongDraws RETURN BetHalfPot FORCE\n"
+        profile += "WHEN Others RETURN Check FORCE\n\n"
+
+        profile += "##f$HaveStrongDraws##\n"
+        profile += "// Strong draws worth betting\n"
+        profile += "WHEN HaveFlushDraw OR HaveStraightDraw RETURN true FORCE\n"
+        profile += "WHEN Others RETURN false FORCE\n\n"
+
+        profile += "##f$turn##\n"
+        profile += "// Basic turn strategy\n"
+        profile += "WHEN BotRaisedBeforeFlop AND BotRaisedOnFlop AND f$InPosition RETURN BetHalfPot FORCE\n"
+        profile += "WHEN HaveTopPair OR BetterOrStrongDraw RETURN BetHalfPot FORCE\n"
+        profile += "WHEN Others RETURN Check FORCE\n\n"
+
+        profile += "##f$HaveTopPairOrBetterOrStrongDraw##\n"
+        profile += "// Hand strong enough to bet on turn\n"
+        profile += "WHEN HaveTopPair OR HaveOverPair OR HaveFlushDraw OR HaveStraightDraw OR HaveTwoPair OR Better RETURN true FORCE\n"
+        profile += "WHEN Others RETURN false FORCE\n\n"
+
+        profile += "##f$river##\n"
+        profile += "// Basic river strategy\n"
+        profile += "WHEN HaveTwoPair OR Better RETURN BetPot FORCE\n"
+        profile += "WHEN Others RETURN Check FORCE\n\n"
+
+        profile += "//*****************************************************************************\n"
+        profile += "//\n"
+        profile += "// END OF PROFILE\n"
         profile += "//\n"
         profile += "//*****************************************************************************"
         
