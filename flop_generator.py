@@ -76,19 +76,19 @@ class FlopProfileGenerator:
         profile += "WHEN BotRaisedBeforeFlop AND BotsActionsOnThisRoundIncludingChecks = 0 AND NOT f$InPosition RETURN f$FlopCbetOOP FORCE\n\n"
 
         profile += "// Facing bet scenarios\n"
-        profile += "WHEN FacingFlopCbet RETURN f$FacingFlopCbet FORCE\n"
-        profile += "WHEN FacingDonkBet RETURN f$FacingDonkBet FORCE\n\n"
+        profile += "WHEN f$FacingFlopCbet RETURN f$FacingFlopCbet FORCE\n"
+        profile += "WHEN f$FacingDonkBet RETURN f$FacingDonkBet FORCE\n\n"
 
         profile += "// Facing check scenarios\n"
         profile += "WHEN BotsLastPreflopAction = Call AND BotsActionsOnThisRoundIncludingChecks = 0 AND f$InPosition RETURN f$BetAfterCheckIP FORCE\n"
         profile += "WHEN BotsLastPreflopAction = Call AND BotsActionsOnThisRoundIncludingChecks = 0 AND Bets = 0 AND NOT f$InPosition RETURN f$DonkBet FORCE\n\n"
 
         profile += "// Check-raise response\n"
-        profile += "WHEN FacingCheckRaiseToCbet RETURN f$FacingCheckRaiseToCbet FORCE\n"
-        profile += "WHEN FacingRaiseToCbet RETURN f$FacingRaiseToCbet FORCE\n\n"
+        profile += "WHEN f$FacingCheckRaiseToCbet RETURN f$FacingCheckRaiseToCbet FORCE\n"
+        profile += "WHEN f$FacingRaiseToCbet RETURN f$FacingRaiseToCbet FORCE\n\n"
 
         profile += "// Default action\n"
-        profile += "WHEN Others RETURN Check FORCE\n\n"
+        profile += "WHEN Others Check FORCE\n\n"
 
         # C-Bet In Position
         profile += "##f$FlopCbetIP##\n"
@@ -96,21 +96,21 @@ class FlopProfileGenerator:
         profile += "// Adjust based on board texture and player count\n\n"
         
         profile += "// Multiway pot considerations\n"
-        profile += f"WHEN nopponentsplaying > 2 AND handrank169 <= {multiway_value_threshold} RETURN Bet{ip_cbet_size}Pot FORCE\n"
-        profile += f"WHEN nopponentsplaying > 2 RETURN Check FORCE\n\n"
+        profile += f"WHEN nopponentsplaying > 2 AND handrank169 <= {multiway_value_threshold} RaiseBy {ip_cbet_size}% FORCE\n"
+        profile += f"WHEN nopponentsplaying > 2 Check FORCE\n\n"
         
         profile += "// Value hands always c-bet\n"
-        profile += "WHEN f$FlopValueHands RETURN Bet{ip_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$FlopValueHands RaiseBy {ip_cbet_size}% FORCE\n\n"
         
         profile += "// Semi-bluffs on draw-heavy boards\n"
-        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {draw_hands_threshold} RETURN Bet{ip_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {draw_hands_threshold} RaiseBy {ip_cbet_size}% FORCE\n\n"
         
         profile += "// Board texture-based adjustments\n"
-        profile += f"WHEN f$DryBoard AND handrank169 <= {ip_cbet_threshold * (1 + dry_board_adjust)} RETURN Bet{ip_cbet_size}Pot FORCE\n"
-        profile += f"WHEN f$WetBoard AND handrank169 <= {ip_cbet_threshold * (1 + wet_board_adjust)} RETURN Bet{ip_cbet_size}Pot FORCE\n"
-        profile += f"WHEN handrank169 <= {ip_cbet_threshold} RETURN Bet{ip_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$DryBoard AND handrank169 <= {ip_cbet_threshold * (1 + dry_board_adjust)} RaiseBy {ip_cbet_size}% FORCE\n"
+        profile += f"WHEN f$WetBoard AND handrank169 <= {ip_cbet_threshold * (1 + wet_board_adjust)} RaiseBy {ip_cbet_size}% FORCE\n"
+        profile += f"WHEN handrank169 <= {ip_cbet_threshold} RaiseBy {ip_cbet_size}% FORCE\n\n"
         
-        profile += "WHEN Others RETURN Check FORCE\n\n"
+        profile += "WHEN Others Check FORCE\n\n"
 
         # C-Bet Out Of Position
         profile += "##f$FlopCbetOOP##\n"
@@ -118,117 +118,117 @@ class FlopProfileGenerator:
         profile += "// Generally more selective when OOP\n\n"
         
         profile += "// Multiway pot considerations - even tighter\n"
-        profile += f"WHEN nopponentsplaying > 2 AND handrank169 <= {round(multiway_value_threshold * 0.8)} RETURN Bet{oop_cbet_size}Pot FORCE\n"
-        profile += f"WHEN nopponentsplaying > 2 RETURN Check FORCE\n\n"
+        profile += f"WHEN nopponentsplaying > 2 AND handrank169 <= {round(multiway_value_threshold * 0.8)} RaiseBy {oop_cbet_size}% FORCE\n"
+        profile += f"WHEN nopponentsplaying > 2 Check FORCE\n\n"
         
         profile += "// Value hands always c-bet\n"
-        profile += "WHEN f$FlopValueHands RETURN Bet{oop_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$FlopValueHands RaiseBy {oop_cbet_size}% FORCE\n\n"
         
         profile += "// Semi-bluffs on draw-heavy boards\n"
-        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {round(draw_hands_threshold * 0.9)} RETURN Bet{oop_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {round(draw_hands_threshold * 0.9)} RaiseBy {oop_cbet_size}% FORCE\n\n"
         
         profile += "// Board texture-based adjustments - more conservative when OOP\n"
-        profile += f"WHEN f$DryBoard AND handrank169 <= {oop_cbet_threshold * (1 + dry_board_adjust * 0.8)} RETURN Bet{oop_cbet_size}Pot FORCE\n"
-        profile += f"WHEN f$WetBoard AND handrank169 <= {oop_cbet_threshold * (1 + wet_board_adjust * 0.8)} RETURN Bet{oop_cbet_size}Pot FORCE\n"
-        profile += f"WHEN handrank169 <= {oop_cbet_threshold} RETURN Bet{oop_cbet_size}Pot FORCE\n\n"
+        profile += f"WHEN f$DryBoard AND handrank169 <= {oop_cbet_threshold * (1 + dry_board_adjust * 0.8)} RaiseBy {oop_cbet_size}% FORCE\n"
+        profile += f"WHEN f$WetBoard AND handrank169 <= {oop_cbet_threshold * (1 + wet_board_adjust * 0.8)} RaiseBy {oop_cbet_size}% FORCE\n"
+        profile += f"WHEN handrank169 <= {oop_cbet_threshold} RaiseBy {oop_cbet_size}% FORCE\n\n"
         
-        profile += "WHEN Others RETURN Check FORCE\n\n"
+        profile += "WHEN Others Check FORCE\n\n"
 
         # Facing Flop C-Bet
         profile += "##f$FacingFlopCbet##\n"
         profile += "// Response when facing a c-bet on the flop\n\n"
         
         profile += "// Always continue with strong hands\n"
-        profile += "WHEN f$FlopStrongHands RETURN RaisePot FORCE\n"
-        profile += "WHEN f$FlopValueHands RETURN Call FORCE\n\n"
+        profile += "WHEN f$FlopStrongHands RaisePot FORCE\n"
+        profile += "WHEN f$FlopValueHands Call FORCE\n\n"
         
         profile += "// Continue with good draws\n"
-        profile += f"WHEN f$FlopDrawHands AND handrank169 <= {draw_hands_threshold} RETURN Call FORCE\n\n"
+        profile += f"WHEN f$FlopDrawHands AND handrank169 <= {draw_hands_threshold} Call FORCE\n\n"
         
         profile += "// Check-raise with strong draws in position\n"
-        profile += f"WHEN f$InPosition AND f$FlopStrongDraws AND handrank169 <= {semibluff_threshold} RETURN RaisePot FORCE\n\n"
+        profile += f"WHEN f$InPosition AND f$FlopStrongDraws AND handrank169 <= {semibluff_threshold} RaisePot FORCE\n\n"
         
         profile += "// Default fold\n"
-        profile += "WHEN Others RETURN Fold FORCE\n\n"
+        profile += "WHEN Others Fold FORCE\n\n"
 
         # Facing Donk Bet
         profile += "##f$FacingDonkBet##\n"
         profile += "// Response when a non-preflop-raiser bets into the preflop raiser\n\n"
         
         profile += "// Aggressive response to donk bets with strong hands\n"
-        profile += "WHEN f$FlopStrongHands RETURN RaisePot FORCE\n"
-        profile += "WHEN f$FlopValueHands RETURN Call FORCE\n\n"
+        profile += "WHEN f$FlopStrongHands RaisePot FORCE\n"
+        profile += "WHEN f$FlopValueHands Call FORCE\n\n"
         
         # Different responses based on settings
         if donk_response == "Fold/Call":
             profile += "// Conservative approach to donk bets\n"
-            profile += f"WHEN f$FlopDrawHands AND handrank169 <= {round(draw_hands_threshold * 0.8)} RETURN Call FORCE\n"
+            profile += f"WHEN f$FlopDrawHands AND handrank169 <= {round(draw_hands_threshold * 0.8)} Call FORCE\n"
         elif donk_response == "Call/Raise":
             profile += "// Balanced approach to donk bets\n"
-            profile += f"WHEN f$FlopDrawHands AND handrank169 <= {draw_hands_threshold} RETURN Call FORCE\n"
-            profile += f"WHEN f$FlopStrongDraws AND handrank169 <= {semibluff_threshold} RETURN RaisePot FORCE\n"
+            profile += f"WHEN f$FlopDrawHands AND handrank169 <= {draw_hands_threshold} Call FORCE\n"
+            profile += f"WHEN f$FlopStrongDraws AND handrank169 <= {semibluff_threshold} RaisePot FORCE\n"
         else:  # Aggressive
             profile += "// Aggressive approach to donk bets\n"
-            profile += f"WHEN f$FlopDrawHands RETURN Call FORCE\n"
-            profile += f"WHEN handrank169 <= {round(ip_cbet_threshold * 0.8)} RETURN RaisePot FORCE\n"
+            profile += f"WHEN f$FlopDrawHands Call FORCE\n"
+            profile += f"WHEN handrank169 <= {round(ip_cbet_threshold * 0.8)} RaisePot FORCE\n"
         
-        profile += "\nWHEN Others RETURN Fold FORCE\n\n"
+        profile += "\nWHEN Others Fold FORCE\n\n"
 
         # Facing Check-Raise to C-Bet
         profile += "##f$FacingCheckRaiseToCbet##\n"
         profile += "// Response when opponent check-raises our c-bet\n\n"
         
         profile += "// Continue with strong hands\n"
-        profile += "WHEN f$FlopStrongHands RETURN RaisePot FORCE\n"
-        profile += "WHEN f$FlopValueHands RETURN Call FORCE\n\n"
+        profile += "WHEN f$FlopStrongHands RaisePot FORCE\n"
+        profile += "WHEN f$FlopValueHands Call FORCE\n\n"
         
         profile += f"// Defense frequency against check-raises\n"
-        profile += f"WHEN handrank169 <= {checkraise_defense_threshold} RETURN Call FORCE\n\n"
+        profile += f"WHEN handrank169 <= {checkraise_defense_threshold} Call FORCE\n\n"
         
         profile += "// Default fold\n"
-        profile += "WHEN Others RETURN Fold FORCE\n\n"
+        profile += "WHEN Others Fold FORCE\n\n"
 
         # Facing Raise to C-Bet
         profile += "##f$FacingRaiseToCbet##\n"
         profile += "// Response when opponent raises our c-bet\n\n"
         
         profile += "// Continue with strong hands\n"
-        profile += "WHEN f$FlopStrongHands RETURN RaisePot FORCE\n"
-        profile += "WHEN f$FlopValueHands RETURN Call FORCE\n\n"
+        profile += "WHEN f$FlopStrongHands RaisePot FORCE\n"
+        profile += "WHEN f$FlopValueHands Call FORCE\n\n"
         
         profile += f"// Defense frequency against raises - slightly tighter than vs check-raises\n"
-        profile += f"WHEN handrank169 <= {round(checkraise_defense_threshold * 0.9)} RETURN Call FORCE\n\n"
+        profile += f"WHEN handrank169 <= {round(checkraise_defense_threshold * 0.9)} Call FORCE\n\n"
         
         profile += "// Default fold\n"
-        profile += "WHEN Others RETURN Fold FORCE\n\n"
+        profile += "WHEN Others Fold FORCE\n\n"
 
         # Donk Bet
         profile += "##f$DonkBet##\n"
         profile += "// Donk betting as non-preflop-raiser\n\n"
         
         profile += "// Only donk with very strong hands or draws\n"
-        profile += "WHEN f$FlopStrongHands RETURN BetPot FORCE\n"
-        profile += f"WHEN f$FlopStrongDraws AND handrank169 <= {round(semibluff_threshold * 0.7)} RETURN BetHalfPot FORCE\n\n"
+        profile += "WHEN f$FlopStrongHands RaisePot FORCE\n"
+        profile += f"WHEN f$FlopStrongDraws AND handrank169 <= {round(semibluff_threshold * 0.7)} RaiseBy 50% FORCE\n\n"
         
         profile += "// Default check\n"
-        profile += "WHEN Others RETURN Check FORCE\n\n"
+        profile += "WHEN Others Check FORCE\n\n"
 
         # Betting after opponent checks in position
         profile += "##f$BetAfterCheckIP##\n"
         profile += "// Betting when checked to in position\n\n"
         
         profile += "// Always bet value hands\n"
-        profile += "WHEN f$FlopValueHands RETURN BetHalfPot FORCE\n\n"
+        profile += "WHEN f$FlopValueHands RaiseBy 50% FORCE\n\n"
         
         profile += "// Bet draws on wet boards\n"
-        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {draw_hands_threshold} RETURN BetHalfPot FORCE\n\n"
+        profile += f"WHEN f$FlopDrawHands AND f$WetBoard AND handrank169 <= {draw_hands_threshold} RaiseBy 50% FORCE\n\n"
         
         profile += "// Opportunistic betting when checked to\n"
-        profile += f"WHEN f$DryBoard AND handrank169 <= {ip_cbet_threshold} RETURN BetHalfPot FORCE\n"
-        profile += f"WHEN handrank169 <= {round(ip_cbet_threshold * 0.8)} RETURN BetHalfPot FORCE\n\n"
+        profile += f"WHEN f$DryBoard AND handrank169 <= {ip_cbet_threshold} RaiseBy 50% FORCE\n"
+        profile += f"WHEN handrank169 <= {round(ip_cbet_threshold * 0.8)} RaiseBy 50% FORCE\n\n"
         
         profile += "// Default check back\n"
-        profile += "WHEN Others RETURN Check FORCE\n\n"
+        profile += "WHEN Others Check FORCE\n\n"
 
         # Hand category helper functions
         profile += "//*****************************************************************************\n"
@@ -240,7 +240,7 @@ class FlopProfileGenerator:
         # Value Hands
         profile += "##f$FlopValueHands##\n"
         profile += "// Hands worth value betting on the flop\n"
-        profile += "WHEN HaveTopPair AND HaveGoodKicker RETURN true FORCE\n"
+        profile += "WHEN HaveTopPair AND f$HaveGoodKicker RETURN true FORCE\n"
         profile += "WHEN HaveOverPair RETURN true FORCE\n"
         profile += "WHEN HaveTwoPair RETURN true FORCE\n"
         profile += "WHEN HaveTrips RETURN true FORCE\n"
