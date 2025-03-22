@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import os
 from preflop_generator import PreflopProfileGenerator
 from flop_generator import FlopProfileGenerator
+from turn_generator import TurnProfileGenerator
 
 class OpenHoldemProfileGenerator:
     def __init__(self, root):
@@ -41,9 +42,23 @@ class OpenHoldemProfileGenerator:
         self.multiway_cbet_freq = tk.IntVar(value=40)
         self.multiway_value_range = tk.IntVar(value=25)
         
+        # Turn variables
+        self.second_barrel_freq = tk.IntVar(value=60)
+        self.delayed_cbet_freq = tk.IntVar(value=40)
+        self.ip_turn_bet_size = tk.StringVar(value="66")
+        self.oop_turn_bet_size = tk.StringVar(value="75")
+        self.turn_checkraise_freq = tk.IntVar(value=25)
+        self.turn_float_freq = tk.IntVar(value=30)
+        self.turn_probe_freq = tk.IntVar(value=35)
+        self.turn_fold_to_cbet_freq = tk.IntVar(value=60)
+        self.turn_bluff_raise_freq = tk.IntVar(value=20)
+        self.scare_card_adjust = tk.IntVar(value=-15)
+        self.draw_complete_adjust = tk.IntVar(value=10)
+        
         # Create the generators
         self.preflop_generator = PreflopProfileGenerator()
         self.flop_generator = FlopProfileGenerator()
+        self.turn_generator = TurnProfileGenerator()
         
         # Setup the UI
         self.create_ui()
@@ -132,6 +147,7 @@ class OpenHoldemProfileGenerator:
         # Create other tabs for specific scenarios
         self.create_preflop_tab(notebook)
         self.create_flop_tab(notebook)
+        self.create_turn_tab(notebook)
         
         # Additional tabs for future expansion
         facing3bet_frame = ttk.Frame(notebook)
@@ -332,7 +348,7 @@ class OpenHoldemProfileGenerator:
         ttk.Scale(ranges_frame, from_=0, to=100, variable=self.semibluff_freq, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
         ttk.Label(ranges_frame, textvariable=self.semibluff_freq).grid(row=2, column=2, padx=5, pady=5)
         
-        # Multiway pots
+        # Multiway pots (suite)
         multiway_frame = ttk.LabelFrame(flop_frame, text="Multiway Pots")
         multiway_frame.pack(fill="x", padx=10, pady=10)
         
@@ -346,6 +362,74 @@ class OpenHoldemProfileGenerator:
         
         # Make columns expandable
         for frame in [cbet_frame, texture_frame, facing_frame, ranges_frame, multiway_frame]:
+            frame.columnconfigure(1, weight=1)
+
+    def create_turn_tab(self, notebook):
+        turn_frame = ttk.Frame(notebook)
+        notebook.add(turn_frame, text="Turn Settings")
+        
+        # Second Barrel settings
+        second_barrel_frame = ttk.LabelFrame(turn_frame, text="Second Barrel Settings")
+        second_barrel_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(second_barrel_frame, text="Second Barrel Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(second_barrel_frame, from_=0, to=100, variable=self.second_barrel_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(second_barrel_frame, textvariable=self.second_barrel_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(second_barrel_frame, text="Delayed C-Bet Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(second_barrel_frame, from_=0, to=100, variable=self.delayed_cbet_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(second_barrel_frame, textvariable=self.delayed_cbet_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(second_barrel_frame, text="IP Turn Bet Size (% of pot):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(second_barrel_frame, textvariable=self.ip_turn_bet_size, values=["50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(second_barrel_frame, text="OOP Turn Bet Size (% of pot):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(second_barrel_frame, textvariable=self.oop_turn_bet_size, values=["50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=3, column=1, padx=5, pady=5)
+        
+        # Turn Card adjustments
+        turn_card_frame = ttk.LabelFrame(turn_frame, text="Turn Card Adjustments")
+        turn_card_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(turn_card_frame, text="Scare Card Adjustment (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(turn_card_frame, from_=-50, to=50, variable=self.scare_card_adjust, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(turn_card_frame, textvariable=self.scare_card_adjust).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(turn_card_frame, text="Draw Complete Adjustment (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(turn_card_frame, from_=-50, to=50, variable=self.draw_complete_adjust, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(turn_card_frame, textvariable=self.draw_complete_adjust).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Facing Turn bets
+        facing_turn_frame = ttk.LabelFrame(turn_frame, text="Facing Turn Bets")
+        facing_turn_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(facing_turn_frame, text="Turn Check-Raise Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_turn_frame, from_=0, to=100, variable=self.turn_checkraise_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_turn_frame, textvariable=self.turn_checkraise_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_turn_frame, text="Turn Float Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_turn_frame, from_=0, to=100, variable=self.turn_float_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_turn_frame, textvariable=self.turn_float_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_turn_frame, text="Turn Fold to C-Bet Frequency (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_turn_frame, from_=0, to=100, variable=self.turn_fold_to_cbet_freq, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_turn_frame, textvariable=self.turn_fold_to_cbet_freq).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Probe betting
+        probe_frame = ttk.LabelFrame(turn_frame, text="Probe Betting")
+        probe_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(probe_frame, text="Turn Probe Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(probe_frame, from_=0, to=100, variable=self.turn_probe_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(probe_frame, textvariable=self.turn_probe_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(probe_frame, text="Turn Bluff Raise Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(probe_frame, from_=0, to=100, variable=self.turn_bluff_raise_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(probe_frame, textvariable=self.turn_bluff_raise_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Make columns expandable
+        for frame in [second_barrel_frame, turn_card_frame, facing_turn_frame, probe_frame]:
             frame.columnconfigure(1, weight=1)
     
     def collect_preflop_settings(self):
@@ -399,17 +483,36 @@ class OpenHoldemProfileGenerator:
             "aggression": self.aggression.get()  # Including global aggression for adjustments
         }
     
+    def collect_turn_settings(self):
+        """Gather all turn settings from the UI into a dictionary"""
+        return {
+            "second_barrel_freq": self.second_barrel_freq.get(),
+            "delayed_cbet_freq": self.delayed_cbet_freq.get(),
+            "ip_turn_bet_size": self.ip_turn_bet_size.get(),
+            "oop_turn_bet_size": self.oop_turn_bet_size.get(),
+            "turn_checkraise_freq": self.turn_checkraise_freq.get(),
+            "turn_float_freq": self.turn_float_freq.get(),
+            "turn_probe_freq": self.turn_probe_freq.get(),
+            "turn_fold_to_cbet_freq": self.turn_fold_to_cbet_freq.get(),
+            "turn_bluff_raise_freq": self.turn_bluff_raise_freq.get(),
+            "scare_card_adjust": self.scare_card_adjust.get(),
+            "draw_complete_adjust": self.draw_complete_adjust.get(),
+            "aggression": self.aggression.get()  # Including global aggression for adjustments
+        }
+    
     def generate_profile(self):
         # Get all settings from UI
         preflop_settings = self.collect_preflop_settings()
         flop_settings = self.collect_flop_settings()
+        turn_settings = self.collect_turn_settings()
         
         # Generate profile using the generators
         preflop_profile = self.preflop_generator.generate_preflop_profile(preflop_settings)
         flop_profile = self.flop_generator.generate_flop_profile(flop_settings)
+        turn_profile = self.turn_generator.generate_turn_profile(turn_settings)
         
         # Combine the profiles
-        full_profile = preflop_profile + "\n\n" + flop_profile
+        full_profile = preflop_profile + "\n\n" + flop_profile + "\n\n" + turn_profile
         
         # Display in preview
         self.preview_text.delete(1.0, tk.END)
