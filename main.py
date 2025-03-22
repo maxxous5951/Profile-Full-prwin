@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import os
 from preflop_generator import PreflopProfileGenerator
+from flop_generator import FlopProfileGenerator
 
 class OpenHoldemProfileGenerator:
     def __init__(self, root):
@@ -25,8 +26,24 @@ class OpenHoldemProfileGenerator:
         # Bet sizing variables
         self.open_raise_var = tk.StringVar(value="2.5")
         
-        # Create the PreflopProfileGenerator
+        # Flop variables
+        self.ip_cbet_freq = tk.IntVar(value=70)
+        self.oop_cbet_freq = tk.IntVar(value=60)
+        self.ip_cbet_size = tk.StringVar(value="50")
+        self.oop_cbet_size = tk.StringVar(value="66")
+        self.dry_board_adjust = tk.IntVar(value=20)
+        self.wet_board_adjust = tk.IntVar(value=-20)
+        self.checkraise_defense = tk.IntVar(value=35)
+        self.donk_response = tk.StringVar(value="Call/Raise")
+        self.value_aggression = tk.IntVar(value=80)
+        self.draw_aggression = tk.IntVar(value=60)
+        self.semibluff_freq = tk.IntVar(value=65)
+        self.multiway_cbet_freq = tk.IntVar(value=40)
+        self.multiway_value_range = tk.IntVar(value=25)
+        
+        # Create the generators
         self.preflop_generator = PreflopProfileGenerator()
+        self.flop_generator = FlopProfileGenerator()
         
         # Setup the UI
         self.create_ui()
@@ -113,10 +130,10 @@ class OpenHoldemProfileGenerator:
         self.preview_text.pack(fill="both", expand=True, padx=5, pady=5)
         
         # Create other tabs for specific scenarios
-        # These will be filled with more detailed options in the complete version
-        openraise_frame = ttk.Frame(notebook)
-        notebook.add(openraise_frame, text="Open Raise")
+        self.create_preflop_tab(notebook)
+        self.create_flop_tab(notebook)
         
+        # Additional tabs for future expansion
         facing3bet_frame = ttk.Frame(notebook)
         notebook.add(facing3bet_frame, text="Facing 3-Bet")
         
@@ -126,8 +143,213 @@ class OpenHoldemProfileGenerator:
         squeeze_frame = ttk.Frame(notebook)
         notebook.add(squeeze_frame, text="Squeeze")
     
-    def collect_settings(self):
-        """Gather all settings from the UI into a dictionary"""
+    def create_preflop_tab(self, notebook):
+        preflop_frame = ttk.Frame(notebook)
+        notebook.add(preflop_frame, text="Preflop Settings")
+        
+        # Create Open Raise frame
+        openraise_frame = ttk.LabelFrame(preflop_frame, text="Open Raise Ranges")
+        openraise_frame.pack(fill="x", padx=10, pady=10)
+        
+        # EP range
+        ttk.Label(openraise_frame, text="Early Position Range (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.ep_range = tk.IntVar(value=15)
+        ttk.Scale(openraise_frame, from_=0, to=100, variable=self.ep_range, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(openraise_frame, textvariable=self.ep_range).grid(row=0, column=2, padx=5, pady=5)
+        
+        # MP range
+        ttk.Label(openraise_frame, text="Middle Position Range (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.mp_range = tk.IntVar(value=20)
+        ttk.Scale(openraise_frame, from_=0, to=100, variable=self.mp_range, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(openraise_frame, textvariable=self.mp_range).grid(row=1, column=2, padx=5, pady=5)
+        
+        # LP range
+        ttk.Label(openraise_frame, text="Late Position Range (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.lp_range = tk.IntVar(value=30)
+        ttk.Scale(openraise_frame, from_=0, to=100, variable=self.lp_range, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(openraise_frame, textvariable=self.lp_range).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Open Raise sizing
+        sizing_frame = ttk.LabelFrame(preflop_frame, text="Position-Based Sizing")
+        sizing_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(sizing_frame, text="EP Sizing (BB):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.ep_sizing = tk.StringVar(value="3.0")
+        ttk.Combobox(sizing_frame, textvariable=self.ep_sizing, values=["2.5", "3.0", "3.5", "4.0"], 
+                    width=5, state="readonly").grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(sizing_frame, text="MP Sizing (BB):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.mp_sizing = tk.StringVar(value="2.8")
+        ttk.Combobox(sizing_frame, textvariable=self.mp_sizing, values=["2.2", "2.5", "2.8", "3.0"], 
+                    width=5, state="readonly").grid(row=1, column=1, padx=5, pady=5)
+        
+        ttk.Label(sizing_frame, text="LP Sizing (BB):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.lp_sizing = tk.StringVar(value="2.5")
+        ttk.Combobox(sizing_frame, textvariable=self.lp_sizing, values=["2.0", "2.2", "2.5", "2.8"], 
+                    width=5, state="readonly").grid(row=2, column=1, padx=5, pady=5)
+        
+        # 3-Bet Defense
+        threebet_frame = ttk.LabelFrame(preflop_frame, text="3-Bet Defense")
+        threebet_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(threebet_frame, text="Call 3-Bet Range (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.call_3bet_range = tk.IntVar(value=15)
+        ttk.Scale(threebet_frame, from_=0, to=100, variable=self.call_3bet_range, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(threebet_frame, textvariable=self.call_3bet_range).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(threebet_frame, text="4-Bet Range (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.fourbet_range = tk.IntVar(value=8)
+        ttk.Scale(threebet_frame, from_=0, to=100, variable=self.fourbet_range, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(threebet_frame, textvariable=self.fourbet_range).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Position adjustments
+        position_adj_frame = ttk.LabelFrame(preflop_frame, text="Position Adjustments")
+        position_adj_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(position_adj_frame, text="In Position 3-Bet Adjust (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.ip_3bet_adjust = tk.IntVar(value=20)
+        ttk.Scale(position_adj_frame, from_=0, to=100, variable=self.ip_3bet_adjust, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(position_adj_frame, textvariable=self.ip_3bet_adjust).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(position_adj_frame, text="vs Late Position 3-Bet Adjust (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.vs_lp_3bet_adjust = tk.IntVar(value=15)
+        ttk.Scale(position_adj_frame, from_=0, to=100, variable=self.vs_lp_3bet_adjust, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(position_adj_frame, textvariable=self.vs_lp_3bet_adjust).grid(row=1, column=2, padx=5, pady=5)
+        
+        # 4-Bet defense
+        fourbet_frame = ttk.LabelFrame(preflop_frame, text="4-Bet Defense")
+        fourbet_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(fourbet_frame, text="Call 4-Bet Range (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.call_4bet_range = tk.IntVar(value=5)
+        ttk.Scale(fourbet_frame, from_=0, to=100, variable=self.call_4bet_range, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(fourbet_frame, textvariable=self.call_4bet_range).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(fourbet_frame, text="5-Bet Range (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.fivebet_range = tk.IntVar(value=3)
+        ttk.Scale(fourbet_frame, from_=0, to=100, variable=self.fivebet_range, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(fourbet_frame, textvariable=self.fivebet_range).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(fourbet_frame, text="Short Stack 4-Bet Adjust (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.short_stack_4bet = tk.IntVar(value=30)
+        ttk.Scale(fourbet_frame, from_=0, to=100, variable=self.short_stack_4bet, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(fourbet_frame, textvariable=self.short_stack_4bet).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Squeeze settings
+        squeeze_frame = ttk.LabelFrame(preflop_frame, text="Squeeze Settings")
+        squeeze_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(squeeze_frame, text="Squeeze vs 1 Caller (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.squeeze_1caller = tk.IntVar(value=12)
+        ttk.Scale(squeeze_frame, from_=0, to=100, variable=self.squeeze_1caller, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(squeeze_frame, textvariable=self.squeeze_1caller).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(squeeze_frame, text="Squeeze vs Multiple Callers (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.squeeze_multi = tk.IntVar(value=8)
+        ttk.Scale(squeeze_frame, from_=0, to=100, variable=self.squeeze_multi, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(squeeze_frame, textvariable=self.squeeze_multi).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(squeeze_frame, text="Squeeze Sizing (x pot):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        self.squeeze_sizing = tk.StringVar(value="3.0")
+        ttk.Combobox(squeeze_frame, textvariable=self.squeeze_sizing, values=["2.5", "3.0", "3.5", "4.0"], 
+                    width=5, state="readonly").grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(squeeze_frame, text="Blinds Squeeze Adjust (%):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        self.blinds_squeeze = tk.IntVar(value=25)
+        ttk.Scale(squeeze_frame, from_=0, to=100, variable=self.blinds_squeeze, orient="horizontal").grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(squeeze_frame, textvariable=self.blinds_squeeze).grid(row=3, column=2, padx=5, pady=5)
+        
+        ttk.Label(squeeze_frame, text="Button Squeeze Adjust (%):").grid(row=4, column=0, padx=5, pady=5, sticky="w")
+        self.btn_squeeze = tk.IntVar(value=20)
+        ttk.Scale(squeeze_frame, from_=0, to=100, variable=self.btn_squeeze, orient="horizontal").grid(row=4, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(squeeze_frame, textvariable=self.btn_squeeze).grid(row=4, column=2, padx=5, pady=5)
+        
+        # Make columns expandable
+        for frame in [openraise_frame, sizing_frame, threebet_frame, position_adj_frame, fourbet_frame, squeeze_frame]:
+            frame.columnconfigure(1, weight=1)
+
+    def create_flop_tab(self, notebook):
+        flop_frame = ttk.Frame(notebook)
+        notebook.add(flop_frame, text="Flop Settings")
+        
+        # C-Bet settings
+        cbet_frame = ttk.LabelFrame(flop_frame, text="C-Bet Settings")
+        cbet_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(cbet_frame, text="IP C-Bet Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(cbet_frame, from_=0, to=100, variable=self.ip_cbet_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(cbet_frame, textvariable=self.ip_cbet_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(cbet_frame, text="OOP C-Bet Frequency (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(cbet_frame, from_=0, to=100, variable=self.oop_cbet_freq, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(cbet_frame, textvariable=self.oop_cbet_freq).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(cbet_frame, text="IP C-Bet Size (% of pot):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(cbet_frame, textvariable=self.ip_cbet_size, values=["33", "50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=2, column=1, padx=5, pady=5)
+        
+        ttk.Label(cbet_frame, text="OOP C-Bet Size (% of pot):").grid(row=3, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(cbet_frame, textvariable=self.oop_cbet_size, values=["33", "50", "66", "75", "100"], 
+                  width=5, state="readonly").grid(row=3, column=1, padx=5, pady=5)
+        
+        # Board texture adjustments
+        texture_frame = ttk.LabelFrame(flop_frame, text="Board Texture Adjustments")
+        texture_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(texture_frame, text="Dry Board Adjustment (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(texture_frame, from_=-50, to=50, variable=self.dry_board_adjust, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(texture_frame, textvariable=self.dry_board_adjust).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(texture_frame, text="Wet Board Adjustment (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(texture_frame, from_=-50, to=50, variable=self.wet_board_adjust, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(texture_frame, textvariable=self.wet_board_adjust).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Facing bets
+        facing_frame = ttk.LabelFrame(flop_frame, text="Facing Bets")
+        facing_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(facing_frame, text="Check-Raise Defense (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(facing_frame, from_=0, to=100, variable=self.checkraise_defense, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(facing_frame, textvariable=self.checkraise_defense).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(facing_frame, text="Donk Bet Response Style:").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Combobox(facing_frame, textvariable=self.donk_response, values=["Fold/Call", "Call/Raise", "Aggressive"], 
+                  width=12, state="readonly").grid(row=1, column=1, padx=5, pady=5)
+        
+        # Hand ranges
+        ranges_frame = ttk.LabelFrame(flop_frame, text="Hand Ranges")
+        ranges_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(ranges_frame, text="Value Hands Aggression (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(ranges_frame, from_=0, to=100, variable=self.value_aggression, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(ranges_frame, textvariable=self.value_aggression).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(ranges_frame, text="Draw Hands Aggression (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(ranges_frame, from_=0, to=100, variable=self.draw_aggression, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(ranges_frame, textvariable=self.draw_aggression).grid(row=1, column=2, padx=5, pady=5)
+        
+        ttk.Label(ranges_frame, text="Semi-Bluff Frequency (%):").grid(row=2, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(ranges_frame, from_=0, to=100, variable=self.semibluff_freq, orient="horizontal").grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(ranges_frame, textvariable=self.semibluff_freq).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Multiway pots
+        multiway_frame = ttk.LabelFrame(flop_frame, text="Multiway Pots")
+        multiway_frame.pack(fill="x", padx=10, pady=10)
+        
+        ttk.Label(multiway_frame, text="Multiway C-Bet Frequency (%):").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(multiway_frame, from_=0, to=100, variable=self.multiway_cbet_freq, orient="horizontal").grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(multiway_frame, textvariable=self.multiway_cbet_freq).grid(row=0, column=2, padx=5, pady=5)
+        
+        ttk.Label(multiway_frame, text="Multiway Value Range (%):").grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        ttk.Scale(multiway_frame, from_=0, to=100, variable=self.multiway_value_range, orient="horizontal").grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+        ttk.Label(multiway_frame, textvariable=self.multiway_value_range).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Make columns expandable
+        for frame in [cbet_frame, texture_frame, facing_frame, ranges_frame, multiway_frame]:
+            frame.columnconfigure(1, weight=1)
+    
+    def collect_preflop_settings(self):
+        """Gather all preflop settings from the UI into a dictionary"""
         return {
             "num_players": self.num_players.get(),
             "game_type": self.game_type.get(),
@@ -137,19 +359,61 @@ class OpenHoldemProfileGenerator:
             "threebet_frequency": self.threebet_frequency.get(),
             "fourbet_frequency": self.fourbet_frequency.get(),
             "squeeze_frequency": self.squeeze_frequency.get(),
-            "open_raise_size": self.open_raise_var.get()
+            "open_raise_size": self.open_raise_var.get(),
+            "ep_range": self.ep_range.get(),
+            "mp_range": self.mp_range.get(),
+            "lp_range": self.lp_range.get(),
+            "ep_sizing": self.ep_sizing.get(),
+            "mp_sizing": self.mp_sizing.get(),
+            "lp_sizing": self.lp_sizing.get(),
+            "call_3bet_range": self.call_3bet_range.get(),
+            "fourbet_range": self.fourbet_range.get(),
+            "ip_3bet_adjust": self.ip_3bet_adjust.get(),
+            "vs_lp_3bet_adjust": self.vs_lp_3bet_adjust.get(),
+            "call_4bet_range": self.call_4bet_range.get(),
+            "fivebet_range": self.fivebet_range.get(),
+            "short_stack_4bet": self.short_stack_4bet.get(),
+            "squeeze_1caller": self.squeeze_1caller.get(),
+            "squeeze_multi": self.squeeze_multi.get(),
+            "squeeze_sizing": self.squeeze_sizing.get(),
+            "blinds_squeeze": self.blinds_squeeze.get(),
+            "btn_squeeze": self.btn_squeeze.get()
+        }
+    
+    def collect_flop_settings(self):
+        """Gather all flop settings from the UI into a dictionary"""
+        return {
+            "ip_cbet_freq": self.ip_cbet_freq.get(),
+            "oop_cbet_freq": self.oop_cbet_freq.get(),
+            "ip_cbet_size": self.ip_cbet_size.get(),
+            "oop_cbet_size": self.oop_cbet_size.get(),
+            "dry_board_adjust": self.dry_board_adjust.get(),
+            "wet_board_adjust": self.wet_board_adjust.get(), 
+            "checkraise_defense": self.checkraise_defense.get(),
+            "donk_response": self.donk_response.get(),
+            "value_aggression": self.value_aggression.get(),
+            "draw_aggression": self.draw_aggression.get(),
+            "semibluff_freq": self.semibluff_freq.get(),
+            "multiway_cbet_freq": self.multiway_cbet_freq.get(),
+            "multiway_value_range": self.multiway_value_range.get(),
+            "aggression": self.aggression.get()  # Including global aggression for adjustments
         }
     
     def generate_profile(self):
         # Get all settings from UI
-        settings = self.collect_settings()
+        preflop_settings = self.collect_preflop_settings()
+        flop_settings = self.collect_flop_settings()
         
-        # Generate profile using the preflop generator
-        profile = self.preflop_generator.generate_preflop_profile(settings)
+        # Generate profile using the generators
+        preflop_profile = self.preflop_generator.generate_preflop_profile(preflop_settings)
+        flop_profile = self.flop_generator.generate_flop_profile(flop_settings)
+        
+        # Combine the profiles
+        full_profile = preflop_profile + "\n\n" + flop_profile
         
         # Display in preview
         self.preview_text.delete(1.0, tk.END)
-        self.preview_text.insert(tk.END, profile)
+        self.preview_text.insert(tk.END, full_profile)
         
         messagebox.showinfo("Profile Generated", "OpenHoldem profile has been generated and is ready to save.")
         
