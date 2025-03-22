@@ -499,17 +499,17 @@ class PreflopProfileGenerator:
         profile += "##f$turn##\n"
         profile += "// Basic turn strategy\n"
         profile += "WHEN BotRaisedBeforeFlop AND BotRaisedOnFlop AND f$InPosition RETURN BetHalfPot FORCE\n"
-        profile += "WHEN HaveTopPair OR BetterOrStrongDraw RETURN BetHalfPot FORCE\n"
+        profile += "WHEN HaveTopPair RETURN BetHalfPot FORCE\n"
         profile += "WHEN Others RETURN Check FORCE\n\n"
 
         profile += "##f$HaveTopPairOrBetterOrStrongDraw##\n"
         profile += "// Hand strong enough to bet on turn\n"
-        profile += "WHEN HaveTopPair OR HaveOverPair OR HaveFlushDraw OR HaveStraightDraw OR HaveTwoPair OR Better RETURN true FORCE\n"
+        profile += "WHEN HaveTopPair OR HaveOverPair OR HaveFlushDraw OR HaveStraightDraw OR HaveTwoPair OR HaveTrips OR HaveStraight OR HaveFlush OR HaveFullHouse OR HaveQuads OR HaveStraightFlush RETURN true FORCE\n"
         profile += "WHEN Others RETURN false FORCE\n\n"
 
         profile += "##f$river##\n"
         profile += "// Basic river strategy\n"
-        profile += "WHEN HaveTwoPair OR Better RETURN BetPot FORCE\n"
+        profile += "WHEN HaveTwoPair  RETURN BetPot FORCE\n"
         profile += "WHEN Others RETURN Check FORCE\n\n"
 
         profile += "//*****************************************************************************\n"
