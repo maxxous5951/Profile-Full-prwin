@@ -10,8 +10,8 @@ class OpenHoldemProfileGenerator:
     def __init__(self, root):
         self.root = root
         self.root.title("OpenHoldem Profile Generator")
-        self.root.geometry("900x700")
-        self.root.minsize(900, 700)
+        self.root.geometry("900x1000")
+        self.root.minsize(900, 1000)
         
         # Configuration variables
         self.num_players = tk.IntVar(value=9)
