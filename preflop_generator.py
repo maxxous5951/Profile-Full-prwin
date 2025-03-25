@@ -771,7 +771,7 @@ class PreflopProfileGenerator:
         # Function to determine if we're in Push/Fold mode
         push_fold += "##f$InPushFoldMode##\n"
         push_fold += "// Determine if we're in push/fold mode (less than 25 BBs)\n"
-        push_fold += "WHEN StackSize < 25 AND !(Tournament AND CurrentHandNumber < 5) RETURN true FORCE\n"
+        push_fold += "WHEN f$EffectiveStack < 25 AND istournament RETURN true FORCE\n"
         push_fold += "WHEN Others RETURN false FORCE\n\n"
         
         # Main Push/Fold function
@@ -780,55 +780,55 @@ class PreflopProfileGenerator:
         
         # 1BB range
         push_fold += "// 1BB range\n"
-        push_fold += "WHEN StackSize <= 1 RETURN f$PushFold_1BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack <= 1 RETURN f$PushFold_1BB FORCE\n\n"
         
         # 2BB range
         push_fold += "// 2BB range\n"
-        push_fold += "WHEN StackSize > 1 AND StackSize <= 2 RETURN f$PushFold_2BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 1 AND f$EffectiveStack <= 2 RETURN f$PushFold_2BB FORCE\n\n"
         
         # 3BB range
         push_fold += "// 3BB range\n"
-        push_fold += "WHEN StackSize > 2 AND StackSize <= 3 RETURN f$PushFold_3BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 2 AND f$EffectiveStack <= 3 RETURN f$PushFold_3BB FORCE\n\n"
         
         # 4BB range
         push_fold += "// 4BB range\n"
-        push_fold += "WHEN StackSize > 3 AND StackSize <= 4 RETURN f$PushFold_4BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 3 AND f$EffectiveStack <= 4 RETURN f$PushFold_4BB FORCE\n\n"
         
         # 5BB range
         push_fold += "// 5BB range\n"
-        push_fold += "WHEN StackSize > 4 AND StackSize <= 5 RETURN f$PushFold_5BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 4 AND f$EffectiveStack <= 5 RETURN f$PushFold_5BB FORCE\n\n"
         
         # 6BB range
         push_fold += "// 6BB range\n"
-        push_fold += "WHEN StackSize > 5 AND StackSize <= 6 RETURN f$PushFold_6BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 5 AND f$EffectiveStack <= 6 RETURN f$PushFold_6BB FORCE\n\n"
         
         # 7BB range
         push_fold += "// 7BB range\n"
-        push_fold += "WHEN StackSize > 6 AND StackSize <= 7 RETURN f$PushFold_7BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 6 AND f$EffectiveStack <= 7 RETURN f$PushFold_7BB FORCE\n\n"
         
         # 8BB range
         push_fold += "// 8BB range\n"
-        push_fold += "WHEN StackSize > 7 AND StackSize <= 8 RETURN f$PushFold_8BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 7 AND f$EffectiveStack <= 8 RETURN f$PushFold_8BB FORCE\n\n"
         
         # 9BB range
         push_fold += "// 9BB range\n"
-        push_fold += "WHEN StackSize > 8 AND StackSize <= 9 RETURN f$PushFold_9BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 8 AND f$EffectiveStack <= 9 RETURN f$PushFold_9BB FORCE\n\n"
         
         # 10BB range
         push_fold += "// 10BB range\n"
-        push_fold += "WHEN StackSize > 9 AND StackSize <= 10 RETURN f$PushFold_10BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 9 AND f$EffectiveStack <= 10 RETURN f$PushFold_10BB FORCE\n\n"
         
         # 10-15BB range
         push_fold += "// 10-15BB range\n"
-        push_fold += "WHEN StackSize > 10 AND StackSize <= 15 RETURN f$PushFold_10_15BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 10 AND f$EffectiveStack <= 15 RETURN f$PushFold_10_15BB FORCE\n\n"
         
         # 15-20BB range
         push_fold += "// 15-20BB range\n"
-        push_fold += "WHEN StackSize > 15 AND StackSize <= 20 RETURN f$PushFold_15_20BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 15 AND f$EffectiveStack <= 20 RETURN f$PushFold_15_20BB FORCE\n\n"
         
         # 20-25BB range
         push_fold += "// 20-25BB range\n"
-        push_fold += "WHEN StackSize > 20 AND StackSize <= 25 RETURN f$PushFold_20_25BB FORCE\n\n"
+        push_fold += "WHEN f$EffectiveStack > 20 AND f$EffectiveStack <= 25 RETURN f$PushFold_20_25BB FORCE\n\n"
         
         # Default action
         push_fold += "// Default action\n"
